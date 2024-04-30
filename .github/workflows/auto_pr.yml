@@ -1,0 +1,21 @@
+name: Auto PR to Main
+
+on:
+  push:
+    branches:
+      - back
+
+jobs:
+  create_pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      
+      - name: Create PR
+        uses: peter-evans/create-pull-request@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: main
+          title: "Auto-generated PR from back to main"
+          body: "This PR was automatically generated."
