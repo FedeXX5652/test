@@ -82,18 +82,18 @@
 
     <h1>Currency Converter</h1>
     <div id="rates">
-        <p id="arsToUsd">Loading ARS to USD...</p>
         <p id="usdToMxn">Loading USD to MXN...</p>
-        <p id="arsToMxn">Loading ARS to MXN...</p>
+        <p id="usdToArs">Loading USD to ARS...</p>
+        <p id="mxnToArs">Loading MXN to ARS...</p>
         <p id="updateTime" class="update-time"></p>
     </div>
 
     <div class="converter">
         <h2>Convert Currency</h2>
         <div class="converter-box">
-            <select id="currencySelect" value="ARS">
-                <option value="ARS" selected>ARS</option>
+            <select id="currencySelect">
                 <option value="MXN">MXN</option>
+                <option value="ARS">ARS</option>
                 <option value="USD">USD</option>
             </select>
             <input type="number" id="currencyInput" placeholder="Enter amount">
@@ -103,7 +103,7 @@
     </div>
 
     <script>
-        let arsToUsdRate, usdToMxnRate, arsToMxnRate;
+        let usdToMxnRate, usdToArsRate, mxnToArsRate;
 
         async function fetchExchangeRates() {
             try {
@@ -117,15 +117,15 @@
                 // Fetch USD to ARS from the custom API
                 const arsResponse = await fetch('https://dolarapi.com/v1/dolares/blue');
                 const arsData = await arsResponse.json();
-                arsToUsdRate = 1 / arsData.venta;
+                usdToArsRate = arsData.venta;
                 const updateTime = new Date(arsData.fechaActualizacion).toLocaleString();
 
-                document.getElementById('arsToUsd').textContent = `1 ARS = ${formatCurrency(arsToUsdRate, 'USD')} USD`;
+                document.getElementById('usdToArs').textContent = `1 USD = ${formatCurrency(usdToArsRate, 'ARS')} ARS (Blue)`;
                 document.getElementById('updateTime').textContent = `Last updated: ${updateTime}`;
 
-                // Calculate ARS to MXN rate
-                arsToMxnRate = arsToUsdRate * usdToMxnRate;
-                document.getElementById('arsToMxn').textContent = `1 ARS = ${formatCurrency(arsToMxnRate, 'MXN')} MXN`;
+                // Calculate MXN to ARS rate
+                mxnToArsRate = usdToArsRate / usdToMxnRate;
+                document.getElementById('mxnToArs').textContent = `1 MXN = ${formatCurrency(mxnToArsRate.toFixed(2), 'ARS')} ARS`;
 
             } catch (error) {
                 document.getElementById('rates').textContent = 'Failed to fetch data';
@@ -139,15 +139,15 @@
             let conversion2 = '';
 
             if (!isNaN(amount)) {
-                if (selectedCurrency === 'ARS') {
-                    conversion1 = `${formatCurrency(amount, 'ARS')} = ${formatCurrency((amount * arsToUsdRate).toFixed(2), 'USD')}`;
-                    conversion2 = `${formatCurrency(amount, 'ARS')} = ${formatCurrency((amount * arsToMxnRate).toFixed(2), 'MXN')}`;
-                } else if (selectedCurrency === 'MXN') {
-                    conversion1 = `${formatCurrency(amount, 'MXN')} = ${formatCurrency((amount / arsToMxnRate).toFixed(2), 'ARS')}`;
-                    conversion2 = `${formatCurrency(amount, 'MXN')} = ${formatCurrency((amount / usdToMxnRate).toFixed(2), 'USD')}`;
+                if (selectedCurrency === 'MXN') {
+                    conversion1 = `${formatCurrency(amount, 'MXN')} = ${formatCurrency((amount / usdToMxnRate).toFixed(2), 'USD')}`;
+                    conversion2 = `${formatCurrency(amount, 'MXN')} = ${formatCurrency((amount * mxnToArsRate).toFixed(2), 'ARS')}`;
+                } else if (selectedCurrency === 'ARS') {
+                    conversion1 = `${formatCurrency(amount, 'ARS')} = ${formatCurrency((amount / usdToArsRate).toFixed(2), 'USD')}`;
+                    conversion2 = `${formatCurrency(amount, 'ARS')} = ${formatCurrency((amount / mxnToArsRate).toFixed(2), 'MXN')}`;
                 } else if (selectedCurrency === 'USD') {
-                    conversion1 = `${formatCurrency(amount, 'USD')} = ${formatCurrency((amount / arsToUsdRate).toFixed(2), 'ARS')}`;
-                    conversion2 = `${formatCurrency(amount, 'USD')} = ${formatCurrency((amount * usdToMxnRate).toFixed(2), 'MXN')}`;
+                    conversion1 = `${formatCurrency(amount, 'USD')} = ${formatCurrency((amount * usdToMxnRate).toFixed(2), 'MXN')} MXN`;
+                    conversion2 = `${formatCurrency(amount, 'USD')} = ${formatCurrency((amount * usdToArsRate).toFixed(2), 'ARS')}`;
                 }
             }
 
