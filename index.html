@@ -467,6 +467,19 @@
                 if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 
                 const data = await response.json();
+
+                // --- ARS desde dolarapi.com ---
+                let arsRate = null;
+                try {
+                    const arsRes = await fetch('https://dolarapi.com/v1/dolares/oficial');
+                    if (arsRes.ok) {
+                        const arsData = await arsRes.json();
+                        arsRate = arsData.venta; // 1 USD en ARS
+                    }
+                } catch (_) {
+                    // Ignorar error; fallback abajo
+                }
+                
                 isOffline = false;
                 
                 Object.keys(config.currencies).forEach(currency => {
@@ -476,7 +489,18 @@
                         } else if (currency === 'USD') {
                             exchangeRates[currency] = 1;
                         } else {
-                            exchangeRates[currency] = data.rates[currency] || 0;
+                            if (currency === 'ARS') {
+                                // Preferir ARS desde dolarapi
+                                if (config.currencies[currency].manualRate !== null) {
+                                    exchangeRates[currency] = config.currencies[currency].manualRate;
+                                } else if (arsRate !== null) {
+                                    exchangeRates[currency] = arsRate;
+                                } else {
+                                    exchangeRates[currency] = data.rates['ARS'] || 0; // fallback
+                                }
+                            } else {
+                                exchangeRates[currency] = data.rates[currency] || 0;
+                            }
                         }
                     }
                 });
