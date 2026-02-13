@@ -6,50 +6,159 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
-body{font-family:system-ui;margin:0;background:#0f172a;color:#fff}
-header{padding:12px;background:#111827;display:flex;flex-wrap:wrap;gap:8px}
-input,button{padding:8px;border-radius:8px;border:none}
-button{cursor:pointer}
-#results{position:absolute;background:#111827;max-height:200px;overflow:auto;border-radius:10px}
-.result{padding:8px;cursor:pointer}
-.result:hover{background:#1f2937}
-#cities{padding:12px}
-.city{padding:14px;border-radius:14px;margin-bottom:10px;display:flex;justify-content:space-between;background:#1f2937}
-.city.base{outline:2px solid #22c55e}
-.night{background:#1e293b}
-.morning{background:#0369a1}
-.afternoon{background:#b45309}
-.evening{background:#6d28d9}
+:root{
+  --bg:#0f172a;
+  --panel:#111827;
+  --card:#1f2937;
+  --accent:#22c55e;
+}
+
+body{
+  margin:0;
+  font-family:system-ui;
+  background:var(--bg);
+  color:#fff;
+}
+
+/* HEADER */
+
+header{
+  background:var(--panel);
+  padding:12px;
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  align-items:center;
+  position:sticky;
+  top:0;
+  z-index:10;
+}
+
+input,button{
+  padding:8px 10px;
+  border-radius:10px;
+  border:none;
+  font-size:14px;
+}
+
+button{ cursor:pointer }
+
+/* STATUS */
+
+#status{
+  font-weight:bold;
+  padding:6px 10px;
+  border-radius:999px;
+}
+
+.online{ background:#166534 }
+.offline{ background:#7f1d1d }
+
+/* SEARCH */
+
+.searchBox{ position:relative }
+
+#results{
+  position:absolute;
+  top:40px;
+  left:0;
+  width:320px;
+  max-height:240px;
+  overflow:auto;
+  background:var attaching
+  var(--panel);
+  border-radius:12px;
+  box-shadow:0 10px 30px #0008;
+  z-index:20;
+}
+
+.result{
+  padding:10px;
+  cursor:pointer;
+}
+
+.result:hover{ background:#1f2937 }
+
+/* CITIES */
+
+#cities{ padding:14px }
+
+.city{
+  background:var(--card);
+  border-radius:16px;
+  padding:14px;
+  margin-bottom:12px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  transition:.2s;
+}
+
+.city:hover{ transform:translateY(-2px) }
+
+.city.base{ outline:2px solid var(--accent) }
+
+/* PERIOD COLORS */
+
+.night{ background:#1e293b }
+.morning{ background:#0369a1 }
+.afternoon{ background:#b45309 }
+.evening{ background:#6d28d9 }
 </style>
 </head>
 
 <body>
 
 <header>
-  <button id="onlineBtn">🌐 ONLINE</button>
+
+<div id="status">Checking...</div>
+
+<div class="searchBox">
   <input id="search" placeholder="Buscar ciudad">
-  <input type="time" id="timeInput">
-  <label><input type="checkbox" id="nowToggle" checked> Hora actual</label>
   <div id="results"></div>
+</div>
+
+<input type="time" id="timeInput">
+
+<label>
+<input type="checkbox" id="nowToggle" checked>
+Hora actual
+</label>
+
 </header>
 
 <div id="cities"></div>
 
 <script>
-const KEY="wts_online_v1"
+const KEY="wts_pro_v2";
 
 let state={
 cities:[],
 base:0,
 custom:"12:00",
-useNow:true,
-online:true
-}
+useNow:true
+};
+
+/* ========= STORAGE ========= */
 
 function save(){localStorage.setItem(KEY,JSON.stringify(state))}
 function load(){const s=localStorage.getItem(KEY);if(s)state=JSON.parse(s)}
 
-/* ===== TIME ===== */
+/* ========= CONNECTION ========= */
+
+const statusEl=document.getElementById("status");
+
+function updateConnection(){
+  const online=navigator.onLine;
+  statusEl.textContent=online?"ONLINE":"OFFLINE";
+  statusEl.className=online?"online":"offline";
+}
+
+window.addEventListener("online",updateConnection);
+window.addEventListener("offline",updateConnection);
+updateConnection();
+
+/* ========= TIME ========= */
 
 function period(h){
 if(h<6)return"night"
@@ -68,16 +177,13 @@ return d
 }
 
 function timeInTZ(date,tz){
-const p=new Intl.DateTimeFormat("en-US",{
+return new Intl.DateTimeFormat("es-AR",{
 hour:"2-digit",minute:"2-digit",
 hour12:false,timeZone:tz
-}).formatToParts(date)
-
-return p.find(x=>x.type==="hour").value+":"+
-       p.find(x=>x.type==="minute").value
+}).format(date)
 }
 
-/* ===== RENDER ===== */
+/* ========= RENDER ========= */
 
 function render(){
 const c=document.getElementById("cities")
@@ -112,85 +218,6 @@ c.appendChild(d)
 })
 }
 
-/* ===== ACTIONS ===== */
+/* ========= ACTIONS ========= */
 
-function setBase(i){state.base=i;save();render()}
-
-function removeCity(i){
-state.cities.splice(i,1)
-if(state.base>=state.cities.length)state.base=0
-save();render()
-}
-
-function addCity(name,tz){
-if(!state.cities.some(c=>c.tz===tz)){
-state.cities.push({name,tz})
-save();render()
-}
-}
-
-/* ===== SEARCH ONLINE ===== */
-
-const results=document.getElementById("results")
-
-document.getElementById("search").oninput=async e=>{
-if(!state.online)return
-
-const q=e.target.value.trim()
-if(q.length<2){results.innerHTML="";return}
-
-const r=await fetch(
-`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}`
-)
-const data=await r.json()
-
-results.innerHTML=""
-
-data.slice(0,6).forEach(item=>{
-const d=document.createElement("div")
-d.className="result"
-d.textContent=item.display_name
-
-d.onclick=async ()=>{
-const tzr=await fetch(
-`https://api.timezonedb.com/v2.1/get-time-zone?key=demo&format=json&by=position&lat=${item.lat}&lng=${item.lon}`
-)
-const tzdata=await tzr.json()
-
-addCity(item.display_name,tzdata.zoneName)
-results.innerHTML=""
-}
-
-results.appendChild(d)
-})
-}
-
-/* ===== CONTROLS ===== */
-
-document.getElementById("nowToggle").onchange=e=>{
-state.useNow=e.target.checked
-save();render()
-}
-
-document.getElementById("timeInput").oninput=e=>{
-state.custom=e.target.value
-state.useNow=false
-save();render()
-}
-
-document.getElementById("onlineBtn").onclick=()=>{
-state.online=!state.online
-document.getElementById("onlineBtn").textContent=
-state.online?"🌐 ONLINE":"📴 OFFLINE"
-save()
-}
-
-/* ===== INIT ===== */
-
-load()
-render()
-setInterval(render,1000)
-</script>
-
-</body>
-</html>
+function setBase(i){state.base=
