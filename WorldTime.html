@@ -36,33 +36,7 @@ button{cursor:pointer}
 <div id="cities"></div>
 
 <script>
-/* ================= DATASET LOCAL ================= */
-/* Ciudades principales — podés ampliar sin problema */
-const CITY_DB=[
-{n:"Buenos Aires",c:"Argentina",tz:"America/Argentina/Buenos_Aires"},
-{n:"Córdoba",c:"Argentina",tz:"America/Argentina/Cordoba"},
-{n:"Rosario",c:"Argentina",tz:"America/Argentina/Cordoba"},
-{n:"Montevideo",c:"Uruguay",tz:"America/Montevideo"},
-{n:"Santiago",c:"Chile",tz:"America/Santiago"},
-{n:"São Paulo",c:"Brasil",tz:"America/Sao_Paulo"},
-{n:"New York",c:"USA",tz:"America/New_York"},
-{n:"Los Angeles",c:"USA",tz:"America/Los_Angeles"},
-{n:"London",c:"UK",tz:"Europe/London"},
-{n:"Madrid",c:"España",tz:"Europe/Madrid"},
-{n:"Paris",c:"Francia",tz:"Europe/Paris"},
-{n:"Berlin",c:"Alemania",tz:"Europe/Berlin"},
-{n:"Rome",c:"Italia",tz:"Europe/Rome"},
-{n:"Dubai",c:"UAE",tz:"Asia/Dubai"},
-{n:"Tokyo",c:"Japón",tz:"Asia/Tokyo"},
-{n:"Seoul",c:"Corea",tz:"Asia/Seoul"},
-{n:"Beijing",c:"China",tz:"Asia/Shanghai"},
-{n:"Sydney",c:"Australia",tz:"Australia/Sydney"},
-{n:"Auckland",c:"NZ",tz:"Pacific/Auckland"}
-];
-
-/* ================= STATE ================= */
-
-const KEY="wts_pro_v1";
+const KEY="wts_online_v1"
 
 let state={
 cities:[],
@@ -70,12 +44,12 @@ base:0,
 custom:"12:00",
 useNow:true,
 online:true
-};
+}
 
 function save(){localStorage.setItem(KEY,JSON.stringify(state))}
 function load(){const s=localStorage.getItem(KEY);if(s)state=JSON.parse(s)}
 
-/* ================= TIME ================= */
+/* ===== TIME ===== */
 
 function period(h){
 if(h<6)return"night"
@@ -103,7 +77,7 @@ return p.find(x=>x.type==="hour").value+":"+
        p.find(x=>x.type==="minute").value
 }
 
-/* ================= RENDER ================= */
+/* ===== RENDER ===== */
 
 function render(){
 const c=document.getElementById("cities")
@@ -138,7 +112,7 @@ c.appendChild(d)
 })
 }
 
-/* ================= ACTIONS ================= */
+/* ===== ACTIONS ===== */
 
 function setBase(i){state.base=i;save();render()}
 
@@ -155,31 +129,43 @@ save();render()
 }
 }
 
-/* ================= SEARCH OFFLINE ================= */
+/* ===== SEARCH ONLINE ===== */
 
 const results=document.getElementById("results")
 
-document.getElementById("search").oninput=e=>{
-const q=e.target.value.toLowerCase()
+document.getElementById("search").oninput=async e=>{
+if(!state.online)return
+
+const q=e.target.value.trim()
 if(q.length<2){results.innerHTML="";return}
 
+const r=await fetch(
+`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}`
+)
+const data=await r.json()
+
 results.innerHTML=""
 
-CITY_DB.filter(c=>
-(c.n+" "+c.c).toLowerCase().includes(q)
-).slice(0,8).forEach(c=>{
+data.slice(0,6).forEach(item=>{
 const d=document.createElement("div")
 d.className="result"
-d.textContent=c.n+", "+c.c
-d.onclick=()=>{
-addCity(d.textContent,c.tz)
+d.textContent=item.display_name
+
+d.onclick=async ()=>{
+const tzr=await fetch(
+`https://api.timezonedb.com/v2.1/get-time-zone?key=demo&format=json&by=position&lat=${item.lat}&lng=${item.lon}`
+)
+const tzdata=await tzr.json()
+
+addCity(item.display_name,tzdata.zoneName)
 results.innerHTML=""
 }
+
 results.appendChild(d)
 })
 }
 
-/* ================= CONTROLS ================= */
+/* ===== CONTROLS ===== */
 
 document.getElementById("nowToggle").onchange=e=>{
 state.useNow=e.target.checked
@@ -199,21 +185,9 @@ state.online?"🌐 ONLINE":"📴 OFFLINE"
 save()
 }
 
-/* ================= DETECT LOCATION ================= */
-
-async function detectLocation(){
-if(!state.online||state.cities.length>0)return
-try{
-const r=await fetch("https://ipapi.co/json/")
-const d=await r.json()
-addCity(d.city,d.timezone)
-}catch{}
-}
-
-/* ================= INIT ================= */
+/* ===== INIT ===== */
 
 load()
-detectLocation()
 render()
 setInterval(render,1000)
 </script>
