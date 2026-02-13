@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>World Time Sync</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+body{font-family:system-ui;margin:0;background:#0f172a;color:#fff}
+header{padding:12px;background:#111827;display:flex;flex-wrap:wrap;gap:8px}
+input,button{padding:8px;border-radius:8px;border:none}
+button{cursor:pointer}
+#results{position:absolute;background:#111827;max-height:200px;overflow:auto;border-radius:10px}
+.result{padding:8px;cursor:pointer}
+.result:hover{background:#1f2937}
+#cities{padding:12px}
+.city{padding:14px;border-radius:14px;margin-bottom:10px;display:flex;justify-content:space-between;background:#1f2937}
+.city.base{outline:2px solid #22c55e}
+.night{background:#1e293b}
+.morning{background:#0369a1}
+.afternoon{background:#b45309}
+.evening{background:#6d28d9}
+</style>
+</head>
+
+<body>
+
+<header>
+  <button id="onlineBtn">🌐 ONLINE</button>
+  <input id="search" placeholder="Buscar ciudad">
+  <input type="time" id="timeInput">
+  <label><input type="checkbox" id="nowToggle" checked> Hora actual</label>
+  <div id="results"></div>
+</header>
+
+<div id="cities"></div>
+
+<script>
+/* ================= DATASET LOCAL ================= */
+/* Ciudades principales — podés ampliar sin problema */
+const CITY_DB=[
+{n:"Buenos Aires",c:"Argentina",tz:"America/Argentina/Buenos_Aires"},
+{n:"Córdoba",c:"Argentina",tz:"America/Argentina/Cordoba"},
+{n:"Rosario",c:"Argentina",tz:"America/Argentina/Cordoba"},
+{n:"Montevideo",c:"Uruguay",tz:"America/Montevideo"},
+{n:"Santiago",c:"Chile",tz:"America/Santiago"},
+{n:"São Paulo",c:"Brasil",tz:"America/Sao_Paulo"},
+{n:"New York",c:"USA",tz:"America/New_York"},
+{n:"Los Angeles",c:"USA",tz:"America/Los_Angeles"},
+{n:"London",c:"UK",tz:"Europe/London"},
+{n:"Madrid",c:"España",tz:"Europe/Madrid"},
+{n:"Paris",c:"Francia",tz:"Europe/Paris"},
+{n:"Berlin",c:"Alemania",tz:"Europe/Berlin"},
+{n:"Rome",c:"Italia",tz:"Europe/Rome"},
+{n:"Dubai",c:"UAE",tz:"Asia/Dubai"},
+{n:"Tokyo",c:"Japón",tz:"Asia/Tokyo"},
+{n:"Seoul",c:"Corea",tz:"Asia/Seoul"},
+{n:"Beijing",c:"China",tz:"Asia/Shanghai"},
+{n:"Sydney",c:"Australia",tz:"Australia/Sydney"},
+{n:"Auckland",c:"NZ",tz:"Pacific/Auckland"}
+];
+
+/* ================= STATE ================= */
+
+const KEY="wts_pro_v1";
+
+let state={
+cities:[],
+base:0,
+custom:"12:00",
+useNow:true,
+online:true
+};
+
+function save(){localStorage.setItem(KEY,JSON.stringify(state))}
+function load(){const s=localStorage.getItem(KEY);if(s)state=JSON.parse(s)}
+
+/* ================= TIME ================= */
+
+function period(h){
+if(h<6)return"night"
+if(h<12)return"morning"
+if(h<18)return"afternoon"
+if(h<22)return"evening"
+return"night"
+}
+
+function baseDate(){
+if(state.useNow)return new Date()
+const d=new Date()
+const[t,m]=state.custom.split(":")
+d.setHours(t,m,0,0)
+return d
+}
+
+function timeInTZ(date,tz){
+const p=new Intl.DateTimeFormat("en-US",{
+hour:"2-digit",minute:"2-digit",
+hour12:false,timeZone:tz
+}).formatToParts(date)
+
+return p.find(x=>x.type==="hour").value+":"+
+       p.find(x=>x.type==="minute").value
+}
+
+/* ================= RENDER ================= */
+
+function render(){
+const c=document.getElementById("cities")
+c.innerHTML=""
+const base=baseDate()
+
+state.cities.forEach((city,i)=>{
+const t=timeInTZ(base,city.tz)
+const h=parseInt(t.split(":")[0])
+
+const d=document.createElement("div")
+d.className="city "+period(h)+(i===state.base?" base":"")
+d.draggable=true
+
+d.innerHTML=`
+<div><b>${city.name}</b><br>${t}</div>
+<div>
+<button onclick="setBase(${i})">⭐</button>
+<button onclick="removeCity(${i})">❌</button>
+</div>`
+
+d.ondragstart=e=>e.dataTransfer.setData("i",i)
+d.ondragover=e=>e.preventDefault()
+d.ondrop=e=>{
+const from=e.dataTransfer.getData("i")
+const item=state.cities.splice(from,1)[0]
+state.cities.splice(i,0,item)
+save();render()
+}
+
+c.appendChild(d)
+})
+}
+
+/* ================= ACTIONS ================= */
+
+function setBase(i){state.base=i;save();render()}
+
+function removeCity(i){
+state.cities.splice(i,1)
+if(state.base>=state.cities.length)state.base=0
+save();render()
+}
+
+function addCity(name,tz){
+if(!state.cities.some(c=>c.tz===tz)){
+state.cities.push({name,tz})
+save();render()
+}
+}
+
+/* ================= SEARCH OFFLINE ================= */
+
+const results=document.getElementById("results")
+
+document.getElementById("search").oninput=e=>{
+const q=e.target.value.toLowerCase()
+if(q.length<2){results.innerHTML="";return}
+
+results.innerHTML=""
+
+CITY_DB.filter(c=>
+(c.n+" "+c.c).toLowerCase().includes(q)
+).slice(0,8).forEach(c=>{
+const d=document.createElement("div")
+d.className="result"
+d.textContent=c.n+", "+c.c
+d.onclick=()=>{
+addCity(d.textContent,c.tz)
+results.innerHTML=""
+}
+results.appendChild(d)
+})
+}
+
+/* ================= CONTROLS ================= */
+
+document.getElementById("nowToggle").onchange=e=>{
+state.useNow=e.target.checked
+save();render()
+}
+
+document.getElementById("timeInput").oninput=e=>{
+state.custom=e.target.value
+state.useNow=false
+save();render()
+}
+
+document.getElementById("onlineBtn").onclick=()=>{
+state.online=!state.online
+document.getElementById("onlineBtn").textContent=
+state.online?"🌐 ONLINE":"📴 OFFLINE"
+save()
+}
+
+/* ================= DETECT LOCATION ================= */
+
+async function detectLocation(){
+if(!state.online||state.cities.length>0)return
+try{
+const r=await fetch("https://ipapi.co/json/")
+const d=await r.json()
+addCity(d.city,d.timezone)
+}catch{}
+}
+
+/* ================= INIT ================= */
+
+load()
+detectLocation()
+render()
+setInterval(render,1000)
+</script>
+
+</body>
+</html>
