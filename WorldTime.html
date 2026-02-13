@@ -220,4 +220,87 @@ c.appendChild(d)
 
 /* ========= ACTIONS ========= */
 
-function setBase(i){state.base=
+function setBase(i){state.base=i;save();render()}
+
+function removeCity(i){
+state.cities.splice(i,1)
+if(state.base>=state.cities.length)state.base=0
+save();render()
+}
+
+function addCity(name,tz){
+if(!state.cities.some(c=>c.tz===tz)){
+state.cities.push({name,tz})
+save();render()
+}
+}
+
+/* ========= SEARCH ========= */
+
+const results=document.getElementById("results");
+
+let debounce;
+
+document.getElementById("search").oninput=e=>{
+clearTimeout(debounce);
+
+debounce=setTimeout(()=>search(e.target.value),300);
+};
+
+async function search(q){
+if(!navigator.onLine||q.length<2){
+results.innerHTML="";
+return;
+}
+
+const r=await fetch(
+`https://nominatim.openstreetmap.org/search?format=json&limit=5&q=${encodeURIComponent(q)}`
+);
+const data=await r.json();
+
+results.innerHTML="";
+
+for(const item of data){
+
+const d=document.createElement("div");
+d.className="result";
+d.textContent=item.display_name;
+
+d.onclick=async()=>{
+try{
+const tzr=await fetch(
+`https://timeapi.io/api/TimeZone/coordinate?latitude=${item.lat}&longitude=${item.lon}`
+);
+const tzdata=await tzr.json();
+
+addCity(item.display_name,tzdata.timeZone);
+results.innerHTML="";
+}catch{}
+};
+
+results.appendChild(d);
+}
+}
+
+/* ========= CONTROLS ========= */
+
+document.getElementById("nowToggle").onchange=e=>{
+state.useNow=e.target.checked;
+save();render();
+}
+
+document.getElementById("timeInput").oninput=e=>{
+state.custom=e.target.value;
+state.useNow=false;
+save();render();
+}
+
+/* ========= INIT ========= */
+
+load();
+render();
+setInterval(render,1000);
+</script>
+
+</body>
+</html>
