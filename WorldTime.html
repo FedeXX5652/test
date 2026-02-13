@@ -4,303 +4,819 @@
 <meta charset="UTF-8">
 <title>World Time Sync</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-
 <style>
 :root{
-  --bg:#0f172a;
-  --panel:#111827;
-  --card:#1f2937;
-  --accent:#22c55e;
+  --bg: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  --panel: #1e293b;
+  --card: #334155;
+  --accent: #22c55e;
+  --accent-hover: #16a34a;
+  --text: #f1f5f9;
+  --text-dim: #94a3b8;
+  --border: #475569;
+}
+
+* {
+  box-sizing: border-box;
 }
 
 body{
-  margin:0;
-  font-family:system-ui;
-  background:var(--bg);
-  color:#fff;
+  margin: 0;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  background-attachment: fixed;
+  color: var(--text);
+  min-height: 100vh;
 }
 
 /* HEADER */
-
 header{
-  background:var(--panel);
-  padding:12px;
-  display:flex;
-  gap:10px;
-  flex-wrap:wrap;
-  align-items:center;
-  position:sticky;
-  top:0;
-  z-index:10;
+  background: rgba(30, 41, 59, 0.95);
+  backdrop-filter: blur(10px);
+  padding: 20px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
-input,button{
-  padding:8px 10px;
-  border-radius:10px;
-  border:none;
-  font-size:14px;
+.header-content {
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
-button{ cursor:pointer }
+.title-section {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
 
-/* STATUS */
+.title-section h1 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #22c55e 0%, #10b981 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
 
+.controls {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* STATUS BADGE */
 #status{
-  font-weight:bold;
-  padding:6px 10px;
-  border-radius:999px;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.3s;
 }
 
-.online{ background:#166534 }
-.offline{ background:#7f1d1d }
+#status::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
 
-/* SEARCH */
+.online { 
+  background: rgba(22, 101, 52, 0.3);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.5);
+}
 
-.searchBox{ position:relative }
+.online::before {
+  background: #22c55e;
+}
+
+.offline { 
+  background: rgba(127, 29, 29, 0.3);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.5);
+}
+
+.offline::before {
+  background: #ef4444;
+  animation: none;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* INPUTS & BUTTONS */
+input, button{
+  padding: 10px 16px;
+  border-radius: 12px;
+  border: none;
+  font-size: 14px;
+  font-family: inherit;
+  transition: all 0.2s;
+}
+
+input {
+  background: rgba(51, 65, 85, 0.6);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
+}
+
+button{ 
+  cursor: pointer;
+  font-weight: 600;
+  background: var(--accent);
+  color: #0f172a;
+}
+
+button:hover {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+}
+
+button:active {
+  transform: translateY(0);
+}
+
+/* SEARCH BOX */
+.searchBox { 
+  position: relative;
+  flex: 1;
+  min-width: 280px;
+  max-width: 400px;
+}
+
+.searchBox input {
+  width: 100%;
+  padding-left: 40px;
+}
+
+.searchBox::before {
+  content: '🔍';
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 16px;
+  pointer-events: none;
+  z-index: 1;
+}
 
 #results{
-  position:absolute;
-  top:40px;
-  left:0;
-  width:320px;
-  max-height:240px;
-  overflow:auto;
-  background:var attaching
-  var(--panel);
-  border-radius:12px;
-  box-shadow:0 10px 30px #0008;
-  z-index:20;
+  position: absolute;
+  top: 48px;
+  left: 0;
+  right: 0;
+  max-height: 300px;
+  overflow: auto;
+  background: var(--panel);
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  z-index: 20;
+  border: 1px solid var(--border);
 }
 
 .result{
-  padding:10px;
-  cursor:pointer;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: background 0.2s;
+  border-bottom: 1px solid rgba(71, 85, 105, 0.3);
 }
 
-.result:hover{ background:#1f2937 }
+.result:last-child {
+  border-bottom: none;
+}
 
-/* CITIES */
+.result:hover{ 
+  background: var(--card);
+}
 
-#cities{ padding:14px }
+/* TIME CONTROLS */
+.time-controls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  background: rgba(51, 65, 85, 0.4);
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+}
 
+.toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 14px;
+  color: var(--text-dim);
+}
+
+input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--accent);
+}
+
+input[type="time"] {
+  min-width: 120px;
+}
+
+/* CITIES CONTAINER */
+#cities{ 
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-dim);
+}
+
+.empty-state h2 {
+  font-size: 24px;
+  margin-bottom: 12px;
+  color: var(--text);
+}
+
+.empty-state p {
+  font-size: 16px;
+  margin: 0;
+}
+
+/* CITY CARDS */
 .city{
-  background:var(--card);
-  border-radius:16px;
-  padding:14px;
-  margin-bottom:12px;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  transition:.2s;
+  background: var(--card);
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.3s;
+  cursor: grab;
+  border: 2px solid transparent;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+  animation: slideIn 0.3s ease-out;
 }
 
-.city:hover{ transform:translateY(-2px) }
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 
-.city.base{ outline:2px solid var(--accent) }
+.city:hover{ 
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px -4px rgba(0, 0, 0, 0.3);
+}
+
+.city:active {
+  cursor: grabbing;
+}
+
+.city.base{ 
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent), 0 12px 24px -4px rgba(34, 197, 94, 0.3);
+}
+
+.city-info {
+  flex: 1;
+}
+
+.city-name {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: var(--text);
+}
+
+.city-time {
+  font-size: 32px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 1px;
+}
+
+.city-period {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  margin-top: 4px;
+  opacity: 0.8;
+  letter-spacing: 1px;
+}
+
+.city-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.city-actions button {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: 10px;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(51, 65, 85, 0.6);
+}
+
+.city-actions button:hover {
+  background: var(--accent);
+}
+
+.city-actions button.base-btn {
+  background: var(--accent);
+}
+
+.city-actions button.base-btn:hover {
+  background: var(--accent-hover);
+}
+
+.city-actions button.remove-btn:hover {
+  background: #ef4444;
+}
 
 /* PERIOD COLORS */
+.night{ 
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  color: #cbd5e1;
+}
 
-.night{ background:#1e293b }
-.morning{ background:#0369a1 }
-.afternoon{ background:#b45309 }
-.evening{ background:#6d28d9 }
+.night .city-time {
+  color: #94a3b8;
+}
+
+.morning{ 
+  background: linear-gradient(135deg, #0369a1 0%, #0284c7 100%);
+  color: #e0f2fe;
+}
+
+.morning .city-time {
+  color: #f0f9ff;
+}
+
+.afternoon{ 
+  background: linear-gradient(135deg, #ea580c 0%, #f97316 100%);
+  color: #ffedd5;
+}
+
+.afternoon .city-time {
+  color: #fff7ed;
+}
+
+.evening{ 
+  background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%);
+  color: #ede9fe;
+}
+
+.evening .city-time {
+  color: #f5f3ff;
+}
+
+/* DRAG INDICATOR */
+.city.dragging {
+  opacity: 0.5;
+  transform: scale(0.95);
+}
+
+/* RESPONSIVE */
+@media (max-width: 768px) {
+  .title-section h1 {
+    font-size: 24px;
+  }
+  
+  .controls {
+    width: 100%;
+  }
+  
+  .searchBox {
+    min-width: 100%;
+    max-width: 100%;
+  }
+  
+  .time-controls {
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .city {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+  
+  .city-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
+
+/* SCROLLBAR */
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--panel);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
 </style>
 </head>
-
 <body>
-
 <header>
-
-<div id="status">Checking...</div>
-
-<div class="searchBox">
-  <input id="search" placeholder="Buscar ciudad">
-  <div id="results"></div>
-</div>
-
-<input type="time" id="timeInput">
-
-<label>
-<input type="checkbox" id="nowToggle" checked>
-Hora actual
-</label>
-
+  <div class="header-content">
+    <div class="title-section">
+      <h1>🌍 World Time Sync</h1>
+      <div id="status">Checking...</div>
+    </div>
+    
+    <div class="controls">
+      <div class="searchBox">
+        <input id="search" placeholder="Buscar ciudad (ej: Buenos Aires, Tokyo...)">
+        <div id="results"></div>
+      </div>
+      
+      <div class="time-controls">
+        <input type="time" id="timeInput" title="Seleccionar hora personalizada">
+        <label class="toggle-label">
+          <input type="checkbox" id="nowToggle" checked>
+          <span>Hora actual</span>
+        </label>
+      </div>
+    </div>
+  </div>
 </header>
 
 <div id="cities"></div>
 
 <script>
-const KEY="wts_pro_v2";
-
-let state={
-cities:[],
-base:0,
-custom:"12:00",
-useNow:true
+const KEY = "wts_pro_v2";
+let state = {
+  cities: [],
+  base: 0,
+  custom: "12:00",
+  useNow: true
 };
 
 /* ========= STORAGE ========= */
-
-function save(){localStorage.setItem(KEY,JSON.stringify(state))}
-function load(){const s=localStorage.getItem(KEY);if(s)state=JSON.parse(s)}
-
-/* ========= CONNECTION ========= */
-
-const statusEl=document.getElementById("status");
-
-function updateConnection(){
-  const online=navigator.onLine;
-  statusEl.textContent=online?"ONLINE":"OFFLINE";
-  statusEl.className=online?"online":"offline";
+function save() { localStorage.setItem(KEY, JSON.stringify(state)) }
+function load() { 
+  const s = localStorage.getItem(KEY);
+  if (s) state = JSON.parse(s);
 }
 
-window.addEventListener("online",updateConnection);
-window.addEventListener("offline",updateConnection);
+/* ========= CONNECTION ========= */
+const statusEl = document.getElementById("status");
+function updateConnection() {
+  const online = navigator.onLine;
+  statusEl.textContent = online ? "ONLINE" : "OFFLINE";
+  statusEl.className = online ? "online" : "offline";
+}
+window.addEventListener("online", updateConnection);
+window.addEventListener("offline", updateConnection);
 updateConnection();
 
 /* ========= TIME ========= */
-
-function period(h){
-if(h<6)return"night"
-if(h<12)return"morning"
-if(h<18)return"afternoon"
-if(h<22)return"evening"
-return"night"
+function period(h) {
+  if (h < 6) return "night";
+  if (h < 12) return "morning";
+  if (h < 18) return "afternoon";
+  if (h < 22) return "evening";
+  return "night";
 }
 
-function baseDate(){
-if(state.useNow)return new Date()
-const d=new Date()
-const[t,m]=state.custom.split(":")
-d.setHours(t,m,0,0)
-return d
+function periodName(h) {
+  if (h < 6) return "Madrugada";
+  if (h < 12) return "Mañana";
+  if (h < 18) return "Tarde";
+  if (h < 22) return "Noche";
+  return "Madrugada";
 }
 
-function timeInTZ(date,tz){
-return new Intl.DateTimeFormat("es-AR",{
-hour:"2-digit",minute:"2-digit",
-hour12:false,timeZone:tz
-}).format(date)
+function baseDate() {
+  if (state.useNow) return new Date();
+  const d = new Date();
+  const [t, m] = state.custom.split(":");
+  d.setHours(t, m, 0, 0);
+  return d;
+}
+
+function timeInTZ(date, tz) {
+  return new Intl.DateTimeFormat("es-AR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: tz
+  }).format(date);
 }
 
 /* ========= RENDER ========= */
-
-function render(){
-const c=document.getElementById("cities")
-c.innerHTML=""
-const base=baseDate()
-
-state.cities.forEach((city,i)=>{
-const t=timeInTZ(base,city.tz)
-const h=parseInt(t.split(":")[0])
-
-const d=document.createElement("div")
-d.className="city "+period(h)+(i===state.base?" base":"")
-d.draggable=true
-
-d.innerHTML=`
-<div><b>${city.name}</b><br>${t}</div>
-<div>
-<button onclick="setBase(${i})">⭐</button>
-<button onclick="removeCity(${i})">❌</button>
-</div>`
-
-d.ondragstart=e=>e.dataTransfer.setData("i",i)
-d.ondragover=e=>e.preventDefault()
-d.ondrop=e=>{
-const from=e.dataTransfer.getData("i")
-const item=state.cities.splice(from,1)[0]
-state.cities.splice(i,0,item)
-save();render()
-}
-
-c.appendChild(d)
-})
+function render() {
+  const c = document.getElementById("cities");
+  c.innerHTML = "";
+  
+  if (state.cities.length === 0) {
+    c.innerHTML = `
+      <div class="empty-state">
+        <h2>🌐 No hay ciudades añadidas</h2>
+        <p>Busca y añade ciudades para ver sus zonas horarias</p>
+      </div>
+    `;
+    return;
+  }
+  
+  const base = baseDate();
+  state.cities.forEach((city, i) => {
+    const t = timeInTZ(base, city.tz);
+    const h = parseInt(t.split(":")[0]);
+    const p = period(h);
+    const pName = periodName(h);
+    
+    const d = document.createElement("div");
+    d.className = "city " + p + (i === state.base ? " base" : "");
+    d.draggable = true;
+    d.innerHTML = `
+      <div class="city-info">
+        <div class="city-name">${city.name}</div>
+        <div class="city-time">${t}</div>
+        <div class="city-period">${pName}</div>
+      </div>
+      <div class="city-actions">
+        <button class="${i === state.base ? 'base-btn' : ''}" onclick="setBase(${i})" title="${i === state.base ? 'Ciudad base actual' : 'Establecer como base'}">
+          ${i === state.base ? '⭐' : '☆'}
+        </button>
+        <button class="remove-btn" onclick="removeCity(${i})" title="Eliminar ciudad">❌</button>
+      </div>
+    `;
+    
+    d.ondragstart = e => {
+      e.dataTransfer.setData("i", i);
+      d.classList.add("dragging");
+    };
+    d.ondragend = e => {
+      d.classList.remove("dragging");
+    };
+    d.ondragover = e => e.preventDefault();
+    d.ondrop = e => {
+      e.preventDefault();
+      const from = parseInt(e.dataTransfer.getData("i"));
+      if (from !== i) {
+        const item = state.cities.splice(from, 1)[0];
+        state.cities.splice(i, 0, item);
+        if (state.base === from) {
+          state.base = i;
+        } else if (from < state.base && i >= state.base) {
+          state.base--;
+        } else if (from > state.base && i <= state.base) {
+          state.base++;
+        }
+        save();
+        render();
+      }
+    };
+    
+    c.appendChild(d);
+  });
 }
 
 /* ========= ACTIONS ========= */
-
-function setBase(i){state.base=i;save();render()}
-
-function removeCity(i){
-state.cities.splice(i,1)
-if(state.base>=state.cities.length)state.base=0
-save();render()
+function setBase(i) {
+  state.base = i;
+  save();
+  render();
 }
 
-function addCity(name,tz){
-if(!state.cities.some(c=>c.tz===tz)){
-state.cities.push({name,tz})
-save();render()
+function removeCity(i) {
+  state.cities.splice(i, 1);
+  if (state.base >= state.cities.length) state.base = 0;
+  save();
+  render();
 }
+
+function addCity(name, tz) {
+  if (!state.cities.some(c => c.tz === tz)) {
+    state.cities.push({ name, tz });
+    save();
+    render();
+  }
 }
 
 /* ========= SEARCH ========= */
-
-const results=document.getElementById("results");
-
+const results = document.getElementById("results");
+const searchInput = document.getElementById("search");
 let debounce;
 
-document.getElementById("search").oninput=e=>{
-clearTimeout(debounce);
-
-debounce=setTimeout(()=>search(e.target.value),300);
+searchInput.oninput = e => {
+  clearTimeout(debounce);
+  debounce = setTimeout(() => search(e.target.value), 300);
 };
 
-async function search(q){
-if(!navigator.onLine||q.length<2){
-results.innerHTML="";
-return;
+// Close results when clicking outside
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.searchBox')) {
+    results.innerHTML = "";
+  }
+});
+
+async function search(q) {
+  if (!navigator.onLine || q.length < 2) {
+    results.innerHTML = "";
+    return;
+  }
+  
+  try {
+    // Using geocode.maps.co which has better CORS support
+    const r = await fetch(
+      `https://geocode.maps.co/search?q=${encodeURIComponent(q)}`
+    );
+    const data = await r.json();
+    results.innerHTML = "";
+    
+    if (data.length === 0) {
+      results.innerHTML = '<div class="result">No se encontraron resultados</div>';
+      return;
+    }
+    
+    for (const item of data) {
+      const d = document.createElement("div");
+      d.className = "result";
+      d.textContent = item.display_name;
+      d.onclick = async () => {
+        try {
+          // Get timezone from coordinates
+          const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+          // Use a more reliable timezone API
+          const tzr = await fetch(
+            `https://api.wheretheiss.at/v1/coordinates/${item.lat},${item.lon}`
+          );
+          const tzdata = await tzr.json();
+          const timezone = tzdata.timezone_id || guessTimezone(item.lat, item.lon);
+          addCity(item.display_name, timezone);
+          results.innerHTML = "";
+          searchInput.value = "";
+        } catch (e) {
+          // Fallback: guess timezone from coordinates
+          const timezone = guessTimezone(item.lat, item.lon);
+          addCity(item.display_name, timezone);
+          results.innerHTML = "";
+          searchInput.value = "";
+        }
+      };
+      results.appendChild(d);
+    }
+  } catch (e) {
+    console.error('Search error:', e);
+    results.innerHTML = '<div class="result">Error al buscar. Intenta de nuevo.</div>';
+  }
 }
 
-const r=await fetch(
-`https://nominatim.openstreetmap.org/search?format=json&limit=5&q=${encodeURIComponent(q)}`
-);
-const data=await r.json();
-
-results.innerHTML="";
-
-for(const item of data){
-
-const d=document.createElement("div");
-d.className="result";
-d.textContent=item.display_name;
-
-d.onclick=async()=>{
-try{
-const tzr=await fetch(
-`https://timeapi.io/api/TimeZone/coordinate?latitude=${item.lat}&longitude=${item.lon}`
-);
-const tzdata=await tzr.json();
-
-addCity(item.display_name,tzdata.timeZone);
-results.innerHTML="";
-}catch{}
-};
-
-results.appendChild(d);
-}
+// Fallback function to guess timezone from coordinates
+function guessTimezone(lat, lon) {
+  // Common timezone mappings by region
+  const timezones = {
+    'America/Argentina/Buenos_Aires': {lat: [-40, -20], lon: [-70, -50]},
+    'America/New_York': {lat: [25, 50], lon: [-85, -65]},
+    'America/Los_Angeles': {lat: [30, 50], lon: [-125, -110]},
+    'Europe/London': {lat: [50, 60], lon: [-10, 2]},
+    'Europe/Paris': {lat: [42, 52], lon: [-5, 10]},
+    'Europe/Madrid': {lat: [36, 44], lon: [-10, 4]},
+    'Asia/Tokyo': {lat: [30, 46], lon: [128, 146]},
+    'Asia/Shanghai': {lat: [20, 45], lon: [100, 125]},
+    'Asia/Dubai': {lat: [22, 28], lon: [50, 60]},
+    'Australia/Sydney': {lat: [-38, -28], lon: [145, 155]},
+  };
+  
+  for (const [tz, bounds] of Object.entries(timezones)) {
+    if (lat >= bounds.lat[0] && lat <= bounds.lat[1] && 
+        lon >= bounds.lon[0] && lon <= bounds.lon[1]) {
+      return tz;
+    }
+  }
+  
+  // Default fallback based on longitude
+  const offset = Math.round(lon / 15);
+  return `Etc/GMT${offset > 0 ? '-' : '+'}${Math.abs(offset)}`;
 }
 
 /* ========= CONTROLS ========= */
+const nowToggle = document.getElementById("nowToggle");
+const timeInput = document.getElementById("timeInput");
 
-document.getElementById("nowToggle").onchange=e=>{
-state.useNow=e.target.checked;
-save();render();
-}
+nowToggle.onchange = e => {
+  state.useNow = e.target.checked;
+  timeInput.disabled = e.target.checked;
+  save();
+  render();
+};
 
-document.getElementById("timeInput").oninput=e=>{
-state.custom=e.target.value;
-state.useNow=false;
-save();render();
-}
+timeInput.oninput = e => {
+  state.custom = e.target.value;
+  if (state.useNow) {
+    state.useNow = false;
+    nowToggle.checked = false;
+  }
+  save();
+  render();
+};
+
+// Initialize time input state
+timeInput.disabled = state.useNow;
+timeInput.value = state.custom;
 
 /* ========= INIT ========= */
-
 load();
-render();
-setInterval(render,1000);
-</script>
 
+// Add current location on first use
+if (state.cities.length === 0) {
+  addCurrentLocation();
+}
+
+render();
+setInterval(render, 1000);
+
+// Function to add current location
+async function addCurrentLocation() {
+  try {
+    // Get user's timezone
+    const userTZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    
+    // Get location name from timezone
+    const cityName = userTZ.split('/').pop().replace(/_/g, ' ');
+    
+    // Add it as the first city
+    addCity(`📍 ${cityName} (Tu ubicación)`, userTZ);
+    
+    // Try to get more accurate location with geolocation API
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          try {
+            const { latitude, longitude } = position.coords;
+            const r = await fetch(
+              `https://geocode.maps.co/reverse?lat=${latitude}&lon=${longitude}`
+            );
+            const data = await r.json();
+            
+            if (data.display_name) {
+              // Update the first city with accurate location
+              if (state.cities.length > 0 && state.cities[0].name.includes('Tu ubicación')) {
+                state.cities[0].name = `📍 ${data.display_name}`;
+                save();
+                render();
+              }
+            }
+          } catch (e) {
+            console.log('Could not get precise location name');
+          }
+        },
+        (error) => {
+          // Geolocation denied or failed, keep the timezone-based name
+          console.log('Geolocation not available:', error.message);
+        }
+      );
+    }
+  } catch (e) {
+    console.error('Error adding current location:', e);
+    // Fallback to UTC if everything fails
+    addCity('📍 Tu ubicación (UTC)', 'UTC');
+  }
+}
+</script>
 </body>
 </html>
