@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JetLag Helper</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --primary: #F59E0B; --primary-light: #FCD34D;
+      --success: #10B981; --info: #6366F1; --danger: #EF4444;
+      --bg-primary: #0F172A; --bg-secondary: #1E293B; --bg-tertiary: #334155;
+      --text-primary: #F8FAFC; --text-secondary: #CBD5E1; --text-muted: #64748B;
+      --border: #334155; --border-hover: #475569;
+    }
+    @keyframes fadeIn  { from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);} }
+    @keyframes slideIn { from{opacity:0;transform:translateX(-10px);}to{opacity:1;transform:translateX(0);} }
+
+    body { font-family:'Inter',sans-serif; background:linear-gradient(135deg,var(--bg-primary) 0%,#1a1a2e 100%);
+           color:var(--text-primary); min-height:100vh; padding:20px; line-height:1.6; }
+    .container { max-width:820px; margin:0 auto; animation:fadeIn .8s ease-out; }
+    h1 { text-align:center; font-size:clamp(2rem,4vw,3rem); font-weight:700; margin:0 0 8px;
+         background:linear-gradient(135deg,var(--primary),var(--primary-light));
+         -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+    .subtitle { text-align:center; color:var(--text-muted); font-size:.95rem; margin-bottom:36px; }
+
+    .section { background:rgba(30,41,59,.8); border-radius:16px; padding:24px; margin-bottom:20px;
+               border:1px solid var(--border); backdrop-filter:blur(10px); box-shadow:0 4px 24px rgba(0,0,0,.2); }
+    .section h2 { font-size:1.1rem; font-weight:600; margin-bottom:20px; display:flex; align-items:center; gap:10px; }
+
+    /* Form grid */
+    .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+    .form-group { display:flex; flex-direction:column; gap:6px; }
+    .form-group label { font-size:.8rem; color:var(--text-muted); font-weight:500; text-transform:uppercase; letter-spacing:.5px; }
+    input[type="date"], input[type="time"], input[type="text"], select {
+      padding:11px 14px; border:1px solid var(--border); background:var(--bg-secondary);
+      color:var(--text-primary); border-radius:8px; font-family:inherit; font-size:.9rem; transition:all .2s; width:100%;
+    }
+    input:focus, select:focus { outline:none; border-color:var(--primary); box-shadow:0 0 0 3px rgba(245,158,11,.1); }
+    input::placeholder { color:var(--text-muted); }
+
+    /* City search boxes */
+    .city-search-wrap { position:relative; }
+    .city-search-wrap input { padding-left:36px; }
+    .city-search-icon { position:absolute; left:12px; top:50%; transform:translateY(-50%); font-size:14px; pointer-events:none; }
+    .city-selected {
+      display:none; margin-top:6px; padding:7px 12px;
+      background:rgba(245,158,11,.1); border:1px solid rgba(245,158,11,.3);
+      border-radius:6px; font-size:.82rem; color:var(--primary-light);
+      display:flex; align-items:center; justify-content:space-between; gap:8px;
+    }
+    .city-selected.hidden { display:none; }
+    .city-clear { cursor:pointer; color:var(--text-muted); font-size:.85rem; background:none; border:none; font-family:inherit; padding:0; }
+    .city-clear:hover { color:var(--danger); }
+
+    /* Dropdown (shared, appended to body) */
+    #jl-dropdown {
+      position:absolute; background:var(--bg-secondary); border:1px solid var(--border);
+      border-radius:12px; max-height:260px; overflow-y:auto;
+      box-shadow:0 16px 48px rgba(0,0,0,.7); z-index:9999; display:none;
+    }
+    #jl-dropdown.open { display:block; }
+    .drop-item { padding:11px 16px; cursor:pointer; border-bottom:1px solid rgba(71,85,105,.3); font-size:.875rem; transition:background .15s; }
+    .drop-item:last-child { border-bottom:none; }
+    .drop-item:hover { background:var(--bg-tertiary); }
+    .drop-item .tz-label { font-size:.75rem; color:var(--text-muted); margin-top:2px; }
+    .drop-loading { padding:14px 16px; color:var(--text-muted); font-size:.875rem; font-style:italic; }
+    .drop-section-label { padding:8px 16px 4px; font-size:.7rem; text-transform:uppercase;
+                          letter-spacing:1px; color:var(--text-muted); font-weight:600; background:rgba(15,23,42,.5); }
+
+    /* Button */
+    .btn-primary { margin-top:20px; width:100%; padding:14px; background:var(--primary); color:#0f172a;
+                   border:none; border-radius:10px; font-family:inherit; font-size:1rem; font-weight:700;
+                   cursor:pointer; transition:all .2s; }
+    .btn-primary:hover { background:var(--primary-light); transform:translateY(-1px); box-shadow:0 4px 20px rgba(245,158,11,.3); }
+    .btn-primary:disabled { opacity:.4; cursor:not-allowed; transform:none; box-shadow:none; }
+
+    /* Summary */
+    .summary-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:20px; }
+    .sum-card { background:rgba(51,65,85,.4); border:1px solid var(--border); border-radius:12px; padding:16px; text-align:center; }
+    .sum-card.hl { border-color:var(--primary); background:rgba(245,158,11,.1); }
+    .sum-card .val { font-size:1.8rem; font-weight:700; line-height:1; margin-bottom:6px; }
+    .sum-card.hl .val { color:var(--primary); }
+    .sum-card .lbl { font-size:.72rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:.5px; }
+
+    .dir-badge { display:inline-flex; align-items:center; gap:6px; padding:6px 14px; border-radius:20px; font-size:.8rem; font-weight:600; }
+    .dir-east { background:rgba(99,102,241,.15); color:#818cf8; border:1px solid rgba(99,102,241,.3); }
+    .dir-west { background:rgba(245,158,11,.15); color:var(--primary); border:1px solid rgba(245,158,11,.3); }
+    .dir-same { background:rgba(16,185,129,.15); color:var(--success); border:1px solid rgba(16,185,129,.3); }
+
+    .diff-bg { background:var(--bg-tertiary); border-radius:99px; height:8px; margin:8px 0 4px; overflow:hidden; }
+    .diff-bar { height:100%; border-radius:99px; transition:width .8s ease; }
+    .diff-note { font-size:.78rem; color:var(--text-muted); margin-top:4px; }
+
+    /* Sleep viz */
+    .sleep-section { margin-top:20px; }
+    .sleep-title { font-size:.875rem; color:var(--text-secondary); font-weight:500; margin-bottom:8px; }
+    .sleep-bar { height:40px; border-radius:10px; overflow:hidden; display:flex; background:var(--bg-tertiary); }
+    .seg-sleep { background:rgba(99,102,241,.55); }
+    .seg-awake { background:rgba(245,158,11,.12); }
+    .hour-labels { display:flex; justify-content:space-between; margin-top:4px; }
+    .hour-labels span { font-size:.65rem; color:var(--text-muted); }
+
+    /* Plan timeline */
+    .plan-timeline { position:relative; padding-left:28px; }
+    .plan-timeline::before { content:''; position:absolute; left:10px; top:0; bottom:0; width:2px;
+                              background:linear-gradient(to bottom,var(--primary),transparent); }
+    .day-block { position:relative; margin-bottom:14px; animation:slideIn .4s ease-out both; }
+    .day-dot { position:absolute; left:-22px; top:14px; width:12px; height:12px; border-radius:50%;
+               border:2px solid var(--primary); background:var(--bg-primary); }
+    .day-dot.flight { background:var(--primary); }
+    .day-header { display:flex; align-items:center; gap:10px; padding:11px 16px; border-radius:10px 10px 0 0;
+                  background:rgba(51,65,85,.5); border:1px solid var(--border); border-bottom:none; }
+    .day-tag { font-size:.72rem; font-weight:600; padding:2px 8px; border-radius:4px; }
+    .tag-before { background:rgba(99,102,241,.2); color:#818cf8; }
+    .tag-flight { background:rgba(245,158,11,.2); color:var(--primary); }
+    .tag-after  { background:rgba(16,185,129,.2); color:var(--success); }
+    .day-title { font-weight:600; font-size:.92rem; }
+    .day-date  { font-size:.78rem; color:var(--text-muted); margin-left:auto; }
+    .day-body  { border:1px solid var(--border); border-top:none; border-radius:0 0 10px 10px; background:rgba(30,41,59,.4); padding:14px 16px; }
+    .sleep-rec { display:flex; align-items:center; gap:12px; }
+    .sleep-rec-time { min-width:110px; font-size:.88rem; font-weight:600; color:var(--primary-light); white-space:nowrap; }
+    .note { font-size:.82rem; color:var(--text-secondary); margin-top:10px; padding:8px 12px;
+            background:rgba(245,158,11,.06); border-left:3px solid rgba(245,158,11,.4); border-radius:0 6px 6px 0; }
+
+    @media(max-width:600px) { body{padding:10px;} .form-grid{grid-template-columns:1fr;} .summary-grid{grid-template-columns:repeat(2,1fr);} }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1><span style="-webkit-text-fill-color:initial">✈️</span> JetLag Helper</h1>
+  <p class="subtitle">Calculá el impacto del jet lag y obtené un plan de sueño personalizado</p>
+
+  <div class="section">
+    <h2>🗺️ Tu vuelo</h2>
+    <div class="form-grid">
+
+      <!-- Origen -->
+      <div class="form-group">
+        <label>Ciudad de origen</label>
+        <div class="city-search-wrap">
+          <span class="city-search-icon">🔍</span>
+          <input type="text" id="search-from" placeholder="Buscar ciudad..." autocomplete="off"
+                 oninput="onSearchInput('from')" onfocus="onSearchFocus('from')" onkeydown="onSearchKey(event,'from')">
+        </div>
+        <div class="city-selected hidden" id="selected-from">
+          <span id="selected-from-label">—</span>
+          <button class="city-clear" onclick="clearCity('from')" title="Cambiar ciudad">✕</button>
+        </div>
+      </div>
+
+      <!-- Destino -->
+      <div class="form-group">
+        <label>Ciudad de destino</label>
+        <div class="city-search-wrap">
+          <span class="city-search-icon">🔍</span>
+          <input type="text" id="search-to" placeholder="Buscar ciudad..." autocomplete="off"
+                 oninput="onSearchInput('to')" onfocus="onSearchFocus('to')" onkeydown="onSearchKey(event,'to')">
+        </div>
+        <div class="city-selected hidden" id="selected-to">
+          <span id="selected-to-label">—</span>
+          <button class="city-clear" onclick="clearCity('to')" title="Cambiar ciudad">✕</button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Fecha de salida</label>
+        <input type="date" id="dep-date">
+      </div>
+      <div class="form-group">
+        <label>Hora de salida (hora local de origen)</label>
+        <input type="time" id="dep-time" value="08:00">
+      </div>
+      <div class="form-group">
+        <label>Duración del vuelo</label>
+        <input type="text" id="duration" placeholder="ej: 12h 30m o 8h">
+      </div>
+      <div class="form-group">
+        <label>Tu horario de sueño habitual</label>
+        <select id="sleep-sel">
+          <option value="22-6">10pm – 6am (8h)</option>
+          <option value="23-7">11pm – 7am (8h)</option>
+          <option value="0-8" selected>12am – 8am (8h)</option>
+          <option value="1-9">1am – 9am (8h)</option>
+          <option value="23-6">11pm – 6am (7h)</option>
+          <option value="22-7">10pm – 7am (9h)</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn-primary" id="calc-btn" onclick="calculate()">⚡ Calcular plan de sueño</button>
+  </div>
+
+  <div id="results" style="display:none">
+    <div class="section">
+      <h2>📊 Resumen</h2>
+      <div class="summary-grid" id="sum-grid"></div>
+      <div id="dir-section"></div>
+      <div class="sleep-section" id="sleep-viz"></div>
+    </div>
+    <div class="section">
+      <h2>📅 Plan de sueño día a día</h2>
+      <p style="font-size:.875rem;color:var(--text-muted);margin-bottom:20px;">
+        Horarios recomendados para cada día. Los días previos al vuelo se expresan en hora local de <strong>origen</strong>; los días posteriores en hora local de <strong>destino</strong>.
+      </p>
+      <div class="plan-timeline" id="plan"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Dropdown compartido, fuera de cualquier stacking context -->
+<div id="jl-dropdown"></div>
+
+<script>
+// ─── LISTA OFFLINE (misma que WorldTime) ─────────────────────────────────────
+const TZ_LIST = [
+  { name:"Buenos Aires",    tz:"America/Argentina/Buenos_Aires", country:"AR" },
+  { name:"Montevideo",      tz:"America/Montevideo",             country:"UY" },
+  { name:"Santiago",        tz:"America/Santiago",               country:"CL" },
+  { name:"Lima",            tz:"America/Lima",                   country:"PE" },
+  { name:"Bogotá",          tz:"America/Bogota",                 country:"CO" },
+  { name:"Caracas",         tz:"America/Caracas",                country:"VE" },
+  { name:"La Paz",          tz:"America/La_Paz",                 country:"BO" },
+  { name:"Asunción",        tz:"America/Asuncion",               country:"PY" },
+  { name:"São Paulo",       tz:"America/Sao_Paulo",              country:"BR" },
+  { name:"Rio de Janeiro",  tz:"America/Sao_Paulo",              country:"BR" },
+  { name:"Brasília",        tz:"America/Sao_Paulo",              country:"BR" },
+  { name:"Manaus",          tz:"America/Manaus",                 country:"BR" },
+  { name:"Ciudad de México",tz:"America/Mexico_City",            country:"MX" },
+  { name:"Guadalajara",     tz:"America/Mexico_City",            country:"MX" },
+  { name:"Monterrey",       tz:"America/Monterrey",              country:"MX" },
+  { name:"Tijuana",         tz:"America/Tijuana",                country:"MX" },
+  { name:"Nueva York",      tz:"America/New_York",               country:"US" },
+  { name:"Miami",           tz:"America/New_York",               country:"US" },
+  { name:"Boston",          tz:"America/New_York",               country:"US" },
+  { name:"Washington DC",   tz:"America/New_York",               country:"US" },
+  { name:"Chicago",         tz:"America/Chicago",                country:"US" },
+  { name:"Houston",         tz:"America/Chicago",                country:"US" },
+  { name:"Dallas",          tz:"America/Chicago",                country:"US" },
+  { name:"Denver",          tz:"America/Denver",                 country:"US" },
+  { name:"Phoenix",         tz:"America/Phoenix",                country:"US" },
+  { name:"Los Ángeles",     tz:"America/Los_Angeles",            country:"US" },
+  { name:"San Francisco",   tz:"America/Los_Angeles",            country:"US" },
+  { name:"Las Vegas",       tz:"America/Los_Angeles",            country:"US" },
+  { name:"Seattle",         tz:"America/Los_Angeles",            country:"US" },
+  { name:"Toronto",         tz:"America/Toronto",                country:"CA" },
+  { name:"Montreal",        tz:"America/Toronto",                country:"CA" },
+  { name:"Vancouver",       tz:"America/Vancouver",              country:"CA" },
+  { name:"Anchorage",       tz:"America/Anchorage",              country:"US" },
+  { name:"Honolulu",        tz:"Pacific/Honolulu",               country:"US" },
+  { name:"Panama City",     tz:"America/Panama",                 country:"PA" },
+  { name:"San José",        tz:"America/Costa_Rica",             country:"CR" },
+  { name:"Guatemala City",  tz:"America/Guatemala",              country:"GT" },
+  { name:"Quito",           tz:"America/Guayaquil",              country:"EC" },
+  { name:"Madrid",          tz:"Europe/Madrid",                  country:"ES" },
+  { name:"Barcelona",       tz:"Europe/Madrid",                  country:"ES" },
+  { name:"Lisboa",          tz:"Europe/Lisbon",                  country:"PT" },
+  { name:"Londres",         tz:"Europe/London",                  country:"GB" },
+  { name:"Dublín",          tz:"Europe/Dublin",                  country:"IE" },
+  { name:"París",           tz:"Europe/Paris",                   country:"FR" },
+  { name:"Lyon",            tz:"Europe/Paris",                   country:"FR" },
+  { name:"Berlín",          tz:"Europe/Berlin",                  country:"DE" },
+  { name:"Múnich",          tz:"Europe/Berlin",                  country:"DE" },
+  { name:"Frankfurt",       tz:"Europe/Berlin",                  country:"DE" },
+  { name:"Ámsterdam",       tz:"Europe/Amsterdam",               country:"NL" },
+  { name:"Bruselas",        tz:"Europe/Brussels",                country:"BE" },
+  { name:"Zurich",          tz:"Europe/Zurich",                  country:"CH" },
+  { name:"Ginebra",         tz:"Europe/Zurich",                  country:"CH" },
+  { name:"Viena",           tz:"Europe/Vienna",                  country:"AT" },
+  { name:"Roma",            tz:"Europe/Rome",                    country:"IT" },
+  { name:"Milán",           tz:"Europe/Rome",                    country:"IT" },
+  { name:"Varsovia",        tz:"Europe/Warsaw",                  country:"PL" },
+  { name:"Budapest",        tz:"Europe/Budapest",                country:"HU" },
+  { name:"Praga",           tz:"Europe/Prague",                  country:"CZ" },
+  { name:"Bucarest",        tz:"Europe/Bucharest",               country:"RO" },
+  { name:"Atenas",          tz:"Europe/Athens",                  country:"GR" },
+  { name:"Helsinki",        tz:"Europe/Helsinki",                country:"FI" },
+  { name:"Estocolmo",       tz:"Europe/Stockholm",               country:"SE" },
+  { name:"Oslo",            tz:"Europe/Oslo",                    country:"NO" },
+  { name:"Copenhague",      tz:"Europe/Copenhagen",              country:"DK" },
+  { name:"Moscú",           tz:"Europe/Moscow",                  country:"RU" },
+  { name:"Estambul",        tz:"Europe/Istanbul",                country:"TR" },
+  { name:"Kiev",            tz:"Europe/Kiev",                    country:"UA" },
+  { name:"Dubái",           tz:"Asia/Dubai",                     country:"AE" },
+  { name:"Abu Dhabi",       tz:"Asia/Dubai",                     country:"AE" },
+  { name:"Riad",            tz:"Asia/Riyadh",                    country:"SA" },
+  { name:"Tel Aviv",        tz:"Asia/Jerusalem",                 country:"IL" },
+  { name:"Bagdad",          tz:"Asia/Baghdad",                   country:"IQ" },
+  { name:"Teherán",         tz:"Asia/Tehran",                    country:"IR" },
+  { name:"Karachi",         tz:"Asia/Karachi",                   country:"PK" },
+  { name:"Lahore",          tz:"Asia/Karachi",                   country:"PK" },
+  { name:"Mumbai",          tz:"Asia/Kolkata",                   country:"IN" },
+  { name:"Delhi",           tz:"Asia/Kolkata",                   country:"IN" },
+  { name:"Calcuta",         tz:"Asia/Kolkata",                   country:"IN" },
+  { name:"Bangalor",        tz:"Asia/Kolkata",                   country:"IN" },
+  { name:"Colombo",         tz:"Asia/Colombo",                   country:"LK" },
+  { name:"Katmandú",        tz:"Asia/Kathmandu",                 country:"NP" },
+  { name:"Daca",            tz:"Asia/Dhaka",                     country:"BD" },
+  { name:"Rangún",          tz:"Asia/Rangoon",                   country:"MM" },
+  { name:"Bangkok",         tz:"Asia/Bangkok",                   country:"TH" },
+  { name:"Hanói",           tz:"Asia/Ho_Chi_Minh",               country:"VN" },
+  { name:"Ho Chi Minh",     tz:"Asia/Ho_Chi_Minh",               country:"VN" },
+  { name:"Yakarta",         tz:"Asia/Jakarta",                   country:"ID" },
+  { name:"Kuala Lumpur",    tz:"Asia/Kuala_Lumpur",              country:"MY" },
+  { name:"Singapur",        tz:"Asia/Singapore",                 country:"SG" },
+  { name:"Manila",          tz:"Asia/Manila",                    country:"PH" },
+  { name:"Hong Kong",       tz:"Asia/Hong_Kong",                 country:"HK" },
+  { name:"Shanghái",        tz:"Asia/Shanghai",                  country:"CN" },
+  { name:"Pekín",           tz:"Asia/Shanghai",                  country:"CN" },
+  { name:"Taipei",          tz:"Asia/Taipei",                    country:"TW" },
+  { name:"Seúl",            tz:"Asia/Seoul",                     country:"KR" },
+  { name:"Tokio",           tz:"Asia/Tokyo",                     country:"JP" },
+  { name:"Osaka",           tz:"Asia/Tokyo",                     country:"JP" },
+  { name:"Sídney",          tz:"Australia/Sydney",               country:"AU" },
+  { name:"Melbourne",       tz:"Australia/Melbourne",            country:"AU" },
+  { name:"Brisbane",        tz:"Australia/Brisbane",             country:"AU" },
+  { name:"Perth",           tz:"Australia/Perth",                country:"AU" },
+  { name:"Auckland",        tz:"Pacific/Auckland",               country:"NZ" },
+  { name:"El Cairo",        tz:"Africa/Cairo",                   country:"EG" },
+  { name:"Lagos",           tz:"Africa/Lagos",                   country:"NG" },
+  { name:"Nairobi",         tz:"Africa/Nairobi",                 country:"KE" },
+  { name:"Johannesburgo",   tz:"Africa/Johannesburg",            country:"ZA" },
+  { name:"Casablanca",      tz:"Africa/Casablanca",              country:"MA" },
+  { name:"Accra",           tz:"Africa/Accra",                   country:"GH" },
+  { name:"UTC",             tz:"UTC",                            country:"🌐" },
+];
+
+// ─── ESTADO ───────────────────────────────────────────────────────────────────
+const SK = "jetlag_v2";
+let saved = {};
+try { const r = localStorage.getItem(SK); if (r) saved = JSON.parse(r); } catch(_) {}
+
+// Ciudades seleccionadas: { from: {name, tz} | null, to: {name, tz} | null }
+let selected = { from: saved.from || null, to: saved.to || null };
+
+// Estado del dropdown: qué campo está activo
+let activeField = null;   // "from" | "to"
+let lastQuery = { from: "", to: "" };
+let debounceTimer = null;
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+function init() {
+  // Rellenar fecha por defecto
+  document.getElementById("dep-date").value = saved.date || new Date().toISOString().split("T")[0];
+  document.getElementById("dep-time").value = saved.time || "08:00";
+  document.getElementById("duration").value  = saved.dur  || "";
+  if (saved.sleep) document.getElementById("sleep-sel").value = saved.sleep;
+
+  // Restaurar ciudades guardadas
+  if (selected.from) showSelectedCity("from", selected.from);
+  if (selected.to)   showSelectedCity("to",   selected.to);
+
+  // Cerrar dropdown al click afuera
+  document.addEventListener("click", e => {
+    if (!e.target.closest(".city-search-wrap") && !e.target.closest("#jl-dropdown")) {
+      closeDropdown();
+    }
+  });
+  window.addEventListener("resize", () => { if (activeField) positionDropdown(); });
+  window.addEventListener("scroll", () => { if (activeField) positionDropdown(); }, true);
+}
+
+// ─── BÚSQUEDA ─────────────────────────────────────────────────────────────────
+function onSearchInput(field) {
+  const q = document.getElementById("search-" + field).value.trim();
+  lastQuery[field] = q;
+  clearTimeout(debounceTimer);
+  if (q.length < 2) { closeDropdown(); return; }
+  debounceTimer = setTimeout(() => doSearch(field, q), 250);
+}
+
+function onSearchFocus(field) {
+  const q = document.getElementById("search-" + field).value.trim();
+  if (q.length >= 2) doSearch(field, q);
+}
+
+function onSearchKey(e, field) {
+  if (e.key === "Escape") closeDropdown();
+}
+
+function doSearch(field, q) {
+  activeField = field;
+  const norm = s => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const lower = norm(q);
+  const offline = TZ_LIST.filter(item => {
+    return norm(item.name).includes(lower) || norm(item.tz).includes(lower);
+  }).slice(0, 8);
+
+  showDropdownResults(field, offline, q, false);
+
+  if (offline.length < 3 && navigator.onLine) {
+    searchOnline(field, q);
+  }
+}
+
+function showDropdownResults(field, results, q, isOnlineExtra) {
+  if (q !== lastQuery[field]) return;
+
+  const dd = document.getElementById("jl-dropdown");
+
+  if (isOnlineExtra) {
+    if (!results.length) return;
+    const label = document.createElement("div");
+    label.className = "drop-section-label";
+    label.textContent = "Resultados online";
+    dd.appendChild(label);
+    results.forEach(item => appendItem(field, item));
+    return;
+  }
+
+  dd.innerHTML = "";
+
+  if (!results.length) {
+    const msg = document.createElement("div");
+    msg.className = "drop-loading";
+    msg.textContent = navigator.onLine ? `Buscando "${q}" online...` : `Sin resultados para "${q}"`;
+    dd.appendChild(msg);
+  } else {
+    results.forEach(item => appendItem(field, item));
+    if (navigator.onLine && results.length < 3) {
+      const msg = document.createElement("div");
+      msg.className = "drop-loading";
+      msg.textContent = "Buscando más resultados online...";
+      dd.appendChild(msg);
+    }
+  }
+
+  positionDropdown(field);
+  dd.classList.add("open");
+}
+
+function appendItem(field, item) {
+  const dd = document.getElementById("jl-dropdown");
+  const div = document.createElement("div");
+  div.className = "drop-item";
+  div.innerHTML = `
+    <div>${item.name} <span style="color:var(--text-muted);font-size:.8rem;">${item.country || ""}</span></div>
+    <div class="tz-label">${item.tz}</div>`;
+  div.addEventListener("mousedown", e => e.preventDefault());
+  div.addEventListener("click", () => {
+    selectCity(field, item);
+    closeDropdown();
+  });
+  dd.appendChild(div);
+}
+
+async function searchOnline(field, q) {
+  try {
+    const r = await fetch(
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=6&featuretype=city`,
+      { headers: { "Accept-Language": "es" } }
+    );
+    if (!r.ok) return;
+    const data = await r.json();
+    if (!data.length || q !== lastQuery[field]) return;
+
+    const extras = [];
+    for (const item of data.slice(0, 5)) {
+      const tz = guessTimezoneFromCoords(parseFloat(item.lat), parseFloat(item.lon));
+      const cleanName = (item.display_name || "").split(",")[0].trim();
+      const country = (item.display_name || "").split(",").slice(-1)[0].trim();
+      const norm = s => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      if (!TZ_LIST.some(t => norm(t.name) === norm(cleanName) && t.tz === tz)) {
+        extras.push({ name: cleanName, tz, country });
+      }
+    }
+
+    const dd = document.getElementById("jl-dropdown");
+    const loadingMsg = dd.querySelector(".drop-loading");
+    if (loadingMsg) loadingMsg.remove();
+    if (extras.length > 0) showDropdownResults(field, extras, q, true);
+  } catch(_) {
+    const dd = document.getElementById("jl-dropdown");
+    const loadingMsg = dd.querySelector(".drop-loading");
+    if (loadingMsg) loadingMsg.remove();
+  }
+}
+
+function guessTimezoneFromCoords(lat, lon) {
+  const COORDS = {
+    "America/Argentina/Buenos_Aires":[-34.6,-58.4], "America/Sao_Paulo":[-23.5,-46.6],
+    "America/New_York":[40.7,-74.0],   "America/Chicago":[41.9,-87.6],
+    "America/Denver":[39.7,-104.9],    "America/Los_Angeles":[34.0,-118.2],
+    "America/Mexico_City":[19.4,-99.1],"Europe/London":[51.5,-0.1],
+    "Europe/Paris":[48.9,2.3],         "Europe/Berlin":[52.5,13.4],
+    "Europe/Madrid":[40.4,-3.7],       "Europe/Rome":[41.9,12.5],
+    "Europe/Moscow":[55.7,37.6],       "Asia/Dubai":[25.2,55.3],
+    "Asia/Kolkata":[28.6,77.2],        "Asia/Shanghai":[31.2,121.5],
+    "Asia/Tokyo":[35.7,139.7],         "Asia/Seoul":[37.6,127.0],
+    "Asia/Singapore":[1.3,103.8],      "Australia/Sydney":[-33.9,151.2],
+    "Pacific/Auckland":[-36.9,174.8],  "Africa/Cairo":[30.1,31.2],
+    "Africa/Nairobi":[-1.3,36.8],      "Africa/Johannesburg":[-26.2,28.0],
+  };
+  let best = null, bestDist = Infinity;
+  for (const [tz,[tlat,tlon]] of Object.entries(COORDS)) {
+    const d = Math.abs(lat-tlat) + Math.abs(lon-tlon);
+    if (d < bestDist) { bestDist = d; best = tz; }
+  }
+  if (bestDist < 8) return best;
+  const off = Math.round(lon / 15);
+  return off === 0 ? "UTC" : `Etc/GMT${off > 0 ? "-" : "+"}${Math.abs(off)}`;
+}
+
+function positionDropdown(field) {
+  const f = field || activeField;
+  if (!f) return;
+  const input = document.getElementById("search-" + f);
+  const rect = input.getBoundingClientRect();
+  const scrollY = window.scrollY || document.documentElement.scrollTop;
+  const scrollX = window.scrollX || document.documentElement.scrollLeft;
+  const dd = document.getElementById("jl-dropdown");
+  dd.style.left  = (rect.left + scrollX) + "px";
+  dd.style.top   = (rect.bottom + scrollY + 6) + "px";
+  dd.style.width = rect.width + "px";
+}
+
+function closeDropdown() {
+  const dd = document.getElementById("jl-dropdown");
+  dd.innerHTML = "";
+  dd.classList.remove("open");
+  activeField = null;
+}
+
+// ─── SELECCIÓN DE CIUDAD ──────────────────────────────────────────────────────
+function selectCity(field, item) {
+  selected[field] = item;
+  saveInputs();
+  showSelectedCity(field, item);
+  // Limpiar el input de texto
+  document.getElementById("search-" + field).value = "";
+  document.getElementById("search-" + field).blur();
+}
+
+function showSelectedCity(field, item) {
+  const box   = document.getElementById("selected-" + field);
+  const label = document.getElementById("selected-" + field + "-label");
+  label.textContent = `${item.name} · ${item.tz}`;
+  box.classList.remove("hidden");
+  document.getElementById("search-" + field).style.display = "none";
+}
+
+function clearCity(field) {
+  selected[field] = null;
+  saveInputs();
+  document.getElementById("selected-" + field).classList.add("hidden");
+  document.getElementById("search-" + field).style.display = "";
+  document.getElementById("search-" + field).value = "";
+  document.getElementById("search-" + field).focus();
+}
+
+// ─── TIMEZONE OFFSET ─────────────────────────────────────────────────────────
+// Obtiene el offset real en horas para una timezone IANA usando Intl
+function getTzOffset(tzName) {
+  try {
+    const now = new Date();
+    const fmt = new Intl.DateTimeFormat("en-CA", {
+      timeZone: tzName, hour:"numeric", minute:"numeric",
+      hour12: false, timeZoneName:"short"
+    });
+    // Comparar la hora local de esa TZ con UTC
+    const utcNow = new Date(now.toLocaleString("en-CA", {timeZone:"UTC"}));
+    const tzNow  = new Date(now.toLocaleString("en-CA", {timeZone: tzName}));
+    return (tzNow - utcNow) / 3600000;
+  } catch(_) {
+    // Fallback: intentar leer offset de Etc/GMT
+    const m = tzName.match(/Etc\/GMT([+-]\d+)/);
+    if (m) return -parseInt(m[1]);
+    return 0;
+  }
+}
+
+// ─── PERSISTENCIA ─────────────────────────────────────────────────────────────
+function saveInputs() {
+  const s = {
+    from:  selected.from,
+    to:    selected.to,
+    date:  document.getElementById("dep-date").value,
+    time:  document.getElementById("dep-time").value,
+    dur:   document.getElementById("duration").value,
+    sleep: document.getElementById("sleep-sel").value,
+  };
+  try { localStorage.setItem(SK, JSON.stringify(s)); saved = s; } catch(_) {}
+}
+
+// ─── CÁLCULO ──────────────────────────────────────────────────────────────────
+function parseDur(str) {
+  str = str.trim().toLowerCase();
+  let h = 0, m = 0;
+  const hm = str.match(/(\d+)\s*h[^\d]*(\d+)?/);
+  if (hm) { h = parseInt(hm[1]); m = parseInt(hm[2] || 0); }
+  else { const ho = str.match(/(\d+(?:\.\d+)?)/); if (ho) h = parseFloat(ho[1]); }
+  return h + m / 60;
+}
+
+function fmt(h) {
+  h = ((h % 24) + 24) % 24;
+  const hh = Math.floor(h), mm = Math.round((h - hh) * 60);
+  return String(hh).padStart(2,"0") + ":" + String(mm).padStart(2,"0");
+}
+
+function calculate() {
+  saveInputs();
+
+  if (!selected.from || !selected.to) {
+    alert("Seleccioná la ciudad de origen y destino usando el buscador."); return;
+  }
+  const depDate = document.getElementById("dep-date").value;
+  const durStr  = document.getElementById("duration").value;
+  if (!depDate || !durStr) { alert("Completá la fecha y la duración del vuelo."); return; }
+  const durH = parseDur(durStr);
+  if (!durH || durH <= 0) { alert("No pude entender la duración. Usá formato '12h 30m' o '8h'."); return; }
+
+  const fromOff = getTzOffset(selected.from.tz);
+  const toOff   = getTzOffset(selected.to.tz);
+
+  const diff    = toOff - fromOff;
+  const absDiff = Math.abs(diff);
+  const dir     = diff > 0 ? "east" : diff < 0 ? "west" : "same";
+
+  const depTime = document.getElementById("dep-time").value;
+  const [depH, depM] = depTime.split(":").map(Number);
+  const arrLocalH = ((depH + depM / 60 + durH + diff) % 24 + 24) % 24;
+
+  const recovDays = Math.max(1, Math.ceil(absDiff / 1.5));
+  const difficulty = Math.min(10, absDiff * (dir === "east" ? 1.2 : 1));
+  const diffLabel  = difficulty <= 3 ? "Leve" : difficulty <= 5 ? "Moderado" : difficulty <= 7 ? "Considerable" : "Severo";
+  const diffColor  = difficulty <= 3 ? "#10B981" : difficulty <= 5 ? "#F59E0B" : difficulty <= 7 ? "#F97316" : "#EF4444";
+
+  const sleepStr = document.getElementById("sleep-sel").value;
+  const [sleepS, sleepE] = sleepStr.split("-").map(Number);
+  const depDateObj = new Date(depDate + "T12:00:00");
+
+  buildSummary({ absDiff, diff, dir, durH, arrLocalH, recovDays, difficulty, diffLabel, diffColor, sleepS, sleepE });
+  buildPlan({ depDateObj, diff, absDiff, dir, durH, sleepS, sleepE, recovDays, arrLocalH });
+
+  document.getElementById("results").style.display = "block";
+  document.getElementById("results").scrollIntoView({ behavior:"smooth", block:"start" });
+}
+
+// ─── SUMMARY ──────────────────────────────────────────────────────────────────
+function buildSummary({ absDiff, diff, dir, durH, arrLocalH, recovDays, difficulty, diffLabel, diffColor, sleepS, sleepE }) {
+  const dh = Math.floor(durH), dm = Math.round((durH - dh) * 60);
+  const cards = [
+    { val: `${absDiff}h`,                        lbl: "Diferencia horaria",   hl: true },
+    { val: `${dh}h${dm > 0 ? " " + dm + "m" : ""}`, lbl: "Duración vuelo",   hl: false },
+    { val: fmt(arrLocalH),                        lbl: "Llegada hora local",   hl: false },
+    { val: `~${recovDays} días`,                  lbl: "Recuperación estim.",  hl: false },
+  ];
+  const sg = document.getElementById("sum-grid"); sg.innerHTML = "";
+  cards.forEach(c => {
+    const d = document.createElement("div");
+    d.className = "sum-card" + (c.hl ? " hl" : "");
+    d.innerHTML = `<div class="val">${c.val}</div><div class="lbl">${c.lbl}</div>`;
+    sg.appendChild(d);
+  });
+
+  const dirText  = { east:"➡️ Hacia el este (más difícil)", west:"⬅️ Hacia el oeste", same:"⬆️ Sin diferencia horaria" };
+  const dirClass = { east:"dir-east", west:"dir-west", same:"dir-same" };
+  const dirNote  = {
+    east: "Viajar al este acorta el día y obliga al cuerpo a dormirse antes de lo habitual. Es la dirección más difícil.",
+    west: "Viajar al oeste alarga el día, lo que es más natural para el reloj biológico humano.",
+    same: "Sin diferencia horaria significativa entre origen y destino. ¡Disfrutá el viaje! 🎉",
+  };
+
+  document.getElementById("dir-section").innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+      <span class="dir-badge ${dirClass[dir]}">${dirText[dir]}</span>
+      <span style="font-size:.82rem;color:var(--text-muted)">${selected.from.name} → ${selected.to.name}</span>
+    </div>
+    <div style="font-size:.85rem;color:var(--text-muted);margin-bottom:6px;">
+      Dificultad de adaptación: <strong style="color:${diffColor}">${diffLabel}</strong>
+    </div>
+    <div class="diff-bg"><div class="diff-bar" style="width:${difficulty*10}%;background:${diffColor}"></div></div>
+    <div class="diff-note">${dirNote[dir]}</div>`;
+
+  // Sleep visualization
+  const targetS = dir === "east" ? ((sleepS - absDiff + 48) % 24) : ((sleepS + absDiff) % 24);
+  const targetE = dir === "east" ? ((sleepE - absDiff + 48) % 24) : ((sleepE + absDiff) % 24);
+  document.getElementById("sleep-viz").innerHTML = `
+    <div class="sleep-title">🕐 Horario de sueño: habitual vs. objetivo en destino</div>
+    <div style="margin-bottom:4px;font-size:.78rem;color:var(--text-muted);">Habitual (${selected.from.name}):</div>
+    ${mkBar(sleepS, sleepE)}
+    <div style="margin:12px 0 4px;font-size:.78rem;color:var(--text-muted);">Objetivo en destino (${selected.to.name}):</div>
+    ${mkBar(targetS, targetE)}
+    <div style="margin-top:8px;font-size:.78rem;color:var(--text-muted);">
+      Objetivo: <strong style="color:var(--primary-light)">${fmt(targetS)} – ${fmt(targetE)}</strong> hora local en ${selected.to.name}
+    </div>`;
+}
+
+function mkBar(sleepStart, sleepEnd) {
+  const slots = Array(24).fill("awake");
+  let h = Math.floor(sleepStart);
+  const end = Math.floor(sleepEnd);
+  let i = 0;
+  while (h !== end && i < 24) { slots[h % 24] = "sleep"; h = (h + 1) % 24; i++; }
+  const segs = slots.map((t, i) =>
+    `<div class="seg-${t}" style="flex:1;height:100%" title="${String(i).padStart(2,"0")}:00"></div>`
+  ).join("");
+  const labels = ["0","6","12","18","24"].map(l => `<span>${l}h</span>`).join("");
+  return `<div class="sleep-bar">${segs}</div><div class="hour-labels">${labels}</div>`;
+}
+
+// ─── PLAN ─────────────────────────────────────────────────────────────────────
+function buildPlan({ depDateObj, diff, absDiff, dir, durH, sleepS, sleepE, recovDays, arrLocalH }) {
+  const plan = document.getElementById("plan"); plan.innerHTML = "";
+  const east = dir === "east";
+
+  const preDays  = absDiff >= 6 ? 2 : absDiff >= 3 ? 1 : 0;
+  const postDays = Math.min(4, recovDays);
+  const days = [];
+
+  for (let i = preDays; i >= 1; i--) {
+    const d = new Date(depDateObj); d.setDate(d.getDate() - i);
+    days.push({ type:"before", date:d, n:i });
+  }
+  days.push({ type:"flight", date:new Date(depDateObj) });
+  for (let i = 1; i <= postDays; i++) {
+    const d = new Date(depDateObj); d.setDate(d.getDate() + i);
+    days.push({ type:"after", date:d, n:i });
+  }
+
+  const shiftPerDay = preDays > 0 ? Math.min(2, absDiff / preDays) : 0;
+  const targetS = ((sleepS + (east ? -absDiff : absDiff)) % 24 + 24) % 24;
+  const targetE = ((sleepE + (east ? -absDiff : absDiff)) % 24 + 24) % 24;
+
+  days.forEach((day, idx) => {
+    const block = document.createElement("div");
+    block.className = "day-block";
+    block.style.animationDelay = `${idx * .06}s`;
+
+    const dateStr = day.date.toLocaleDateString("es-AR", { weekday:"short", day:"numeric", month:"short" });
+    const tagClass = { before:"tag-before", flight:"tag-flight", after:"tag-after" }[day.type];
+    const tagLabel = { before:"Antes", flight:"Vuelo", after:"Después" }[day.type];
+
+    let recS, recE, note, refCity;
+
+    if (day.type === "before") {
+      const shift = east ? -shiftPerDay * day.n : shiftPerDay * day.n;
+      recS = ((sleepS + shift) % 24 + 24) % 24;
+      recE = ((sleepE + shift) % 24 + 24) % 24;
+      refCity = selected.from.name;
+      const hrs = Math.round(shiftPerDay * day.n);
+      note = east
+        ? `Acostarte ~${hrs}h más temprano (${fmt(recS)}) para pre-adaptar tu reloj al horario de ${selected.to.name}.`
+        : `Acostarte ~${hrs}h más tarde (${fmt(recS)}) para pre-adaptar tu reloj al horario de ${selected.to.name}.`;
+    } else if (day.type === "flight") {
+      recS = targetS; recE = targetE;
+      refCity = selected.to.name;
+      note = `Intentá dormir cuando sea noche en ${selected.to.name} (${fmt(recS)} – ${fmt(recE)} hora destino). Usá antifaz y tapones.`;
+      if (arrLocalH >= 6 && arrLocalH <= 20) note += ` Llegás a las ${fmt(arrLocalH)}, de día: resistí dormir más hasta la noche local.`;
+    } else {
+      const progress = day.n / postDays;
+      recS = ((targetS + (1 - progress) * absDiff * (east ? 1 : -1)) % 24 + 24) % 24;
+      recE = ((targetE + (1 - progress) * absDiff * (east ? 1 : -1)) % 24 + 24) % 24;
+      refCity = selected.to.name;
+      if (day.n === 1) {
+        note = `Primer día en ${selected.to.name}. Acostarte a las ${fmt(recS)} hora local aunque no tengas sueño. Es la señal clave para resetear el reloj.`;
+      } else if (day.n < postDays) {
+        note = `Seguís ajustando. Horario de hoy: dormir de ${fmt(recS)} a ${fmt(recE)} hora local.`;
+      } else {
+        recS = targetS; recE = targetE;
+        note = `Para hoy deberías estar completamente adaptado. Mantené el horario de ${fmt(recS)} – ${fmt(recE)}.`;
+      }
+    }
+
+    block.innerHTML = `
+      <div class="day-dot${day.type === "flight" ? " flight" : ""}"></div>
+      <div class="day-header">
+        <span class="day-tag ${tagClass}">${tagLabel}</span>
+        <span class="day-title">${getTitle(day)}</span>
+        <span class="day-date">${dateStr}</span>
+      </div>
+      <div class="day-body">
+        <div style="font-size:.78rem;color:var(--text-muted);margin-bottom:8px;">
+          Sueño recomendado — hora local de <strong>${refCity}</strong>:
+        </div>
+        <div class="sleep-rec">
+          <span class="sleep-rec-time">${fmt(recS)} – ${fmt(recE)}</span>
+          <div style="flex:1">${mkBar(recS, recE)}</div>
+        </div>
+        <div class="note">${note}</div>
+      </div>`;
+    plan.appendChild(block);
+  });
+}
+
+function getTitle(day) {
+  if (day.type === "before") return day.n === 1 ? "Día anterior al vuelo" : `${day.n} días antes del vuelo`;
+  if (day.type === "flight") return "Día del vuelo";
+  if (day.type === "after")  return day.n === 1 ? "Día de llegada" : `Día ${day.n} en destino`;
+  return "";
+}
+
+init();
+</script>
+</body>
+</html>

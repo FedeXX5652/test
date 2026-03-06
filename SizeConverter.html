@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Size Converter</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --primary: #6366F1; --primary-light: #818CF8;
+      --success: #10B981; --warning: #F59E0B; --danger: #EF4444;
+      --bg-primary: #0F172A; --bg-secondary: #1E293B; --bg-tertiary: #334155;
+      --text-primary: #F8FAFC; --text-secondary: #CBD5E1; --text-muted: #64748B;
+      --border: #334155; --border-hover: #475569;
+    }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);} }
+    @keyframes pop    { 0%,100%{transform:scale(1);}50%{transform:scale(1.05);} }
+
+    body { font-family:'Inter',sans-serif; background:linear-gradient(135deg,var(--bg-primary) 0%,#1a1a2e 100%); color:var(--text-primary); min-height:100vh; padding:20px; line-height:1.6; }
+    .container { max-width:980px; margin:0 auto; animation:fadeIn 0.8s ease-out; }
+    h1 { text-align:center; font-size:clamp(2rem,4vw,3rem); font-weight:700; margin:0 0 8px;
+         background:linear-gradient(135deg,var(--primary),var(--primary-light));
+         -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+    .subtitle { text-align:center; color:var(--text-muted); font-size:.95rem; margin-bottom:36px; }
+
+    .section { background:rgba(30,41,59,.8); border-radius:16px; padding:24px; margin-bottom:20px;
+               border:1px solid var(--border); backdrop-filter:blur(10px); box-shadow:0 4px 24px rgba(0,0,0,.2); }
+    .section h2 { font-size:1.1rem; font-weight:600; margin-bottom:20px; display:flex; align-items:center; gap:10px; }
+
+    /* Tabs */
+    .tabs { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:24px; }
+    .tab { padding:8px 16px; border-radius:8px; border:2px solid var(--border); background:var(--bg-tertiary);
+           color:var(--text-muted); cursor:pointer; font-size:.85rem; font-weight:500; transition:all .2s; font-family:inherit; }
+    .tab:hover { border-color:var(--border-hover); color:var(--text-secondary); }
+    .tab.active { border-color:var(--primary); background:rgba(99,102,241,.15); color:var(--primary); }
+
+    /* Input layout */
+    .input-section { display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:24px; }
+    .input-panel { background:rgba(51,65,85,.3); border-radius:12px; padding:18px; border:1px solid var(--border); }
+    .input-panel h3 { font-size:.82rem; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:.5px; margin-bottom:14px; }
+
+    .input-group { display:flex; flex-direction:column; gap:6px; margin-bottom:12px; }
+    .input-group:last-child { margin-bottom:0; }
+    .input-group label { font-size:.8rem; color:var(--text-muted); font-weight:500; }
+    select, input[type="number"] {
+      padding:10px 14px; border:1px solid var(--border); background:var(--bg-secondary);
+      color:var(--text-primary); border-radius:8px; font-family:inherit; font-size:.9rem; transition:all .2s; width:100%;
+    }
+    select:focus, input:focus { outline:none; border-color:var(--primary); box-shadow:0 0 0 3px rgba(99,102,241,.1); }
+    input::placeholder { color:var(--text-muted); }
+
+    .cm-wrap { position:relative; }
+    .cm-wrap input { padding-right:44px; }
+    .cm-unit { position:absolute; right:14px; top:50%; transform:translateY(-50%); color:var(--text-muted); font-size:.85rem; pointer-events:none; }
+
+    /* Mode toggle */
+    .mode-toggle { display:flex; gap:8px; margin-bottom:14px; }
+    .mode-btn { flex:1; padding:9px; border-radius:8px; border:2px solid var(--border); background:var(--bg-tertiary);
+                color:var(--text-muted); cursor:pointer; font-size:.82rem; font-weight:500; font-family:inherit; text-align:center; transition:all .2s; }
+    .mode-btn.active { border-color:var(--primary); background:rgba(99,102,241,.15); color:var(--primary); }
+
+    /* Region buttons */
+    .region-btns { display:flex; gap:6px; flex-wrap:wrap; }
+    .region-btn { padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-tertiary);
+                  color:var(--text-muted); cursor:pointer; font-size:.8rem; font-weight:500; font-family:inherit; transition:all .2s; }
+    .region-btn:hover { border-color:var(--border-hover); color:var(--text-secondary); }
+    .region-btn.active { border-color:var(--primary); background:rgba(99,102,241,.15); color:var(--primary); }
+
+    /* Results */
+    .results-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; }
+    .result-card { background:rgba(51,65,85,.4); border:2px solid var(--border); border-radius:10px; padding:14px 16px; transition:all .2s; }
+    .result-card:hover { border-color:var(--border-hover); transform:translateY(-2px); }
+    .result-card.my-size    { border-color:var(--primary);  background:rgba(99,102,241,.12); }
+    .result-card.best-match { border-color:var(--success);  background:rgba(16,185,129,.10); animation:pop .4s ease; }
+    .result-card.cm-card    { border-color:var(--warning);  background:rgba(245,158,11,.08); }
+    .region-name { font-size:.68rem; font-weight:600; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted); margin-bottom:6px; }
+    .size-value  { font-size:1.7rem; font-weight:700; line-height:1; color:var(--text-primary); }
+    .result-card.my-size    .size-value { color:var(--primary-light); }
+    .result-card.best-match .size-value { color:#34d399; }
+    .result-card.cm-card    .size-value { color:var(--warning); font-size:1.2rem; line-height:1.4; }
+    .size-sub { font-size:.72rem; color:var(--text-muted); margin-top:5px; }
+    .badge { display:inline-block; font-size:.65rem; font-weight:700; padding:2px 7px; border-radius:4px; margin-top:6px; text-transform:uppercase; letter-spacing:.5px; }
+    .badge-mine  { background:rgba(99,102,241,.25); color:var(--primary-light); }
+    .badge-match { background:rgba(16,185,129,.25);  color:#34d399; }
+    .badge-cm    { background:rgba(245,158,11,.2);   color:var(--warning); }
+
+    .empty { text-align:center; padding:32px; color:var(--text-muted); font-size:.9rem; }
+    .cm-hint { font-size:.8rem; margin-top:6px; min-height:20px; }
+
+    /* Settings */
+    .settings-header { display:flex; justify-content:space-between; align-items:center; padding:14px 20px; cursor:pointer;
+                       border-radius:12px; border:1px dashed var(--border); background:rgba(15,23,42,.5); transition:all .2s; }
+    .settings-header:hover { background:rgba(30,41,59,.5); }
+    .settings-header span { font-size:.875rem; color:var(--text-muted); font-weight:500; }
+    .chevron { transition:transform .3s; color:var(--text-muted); }
+    .chevron.open { transform:rotate(180deg); }
+    .settings-body { display:none; padding:16px 20px; border:1px dashed var(--border); border-top:none; border-radius:0 0 12px 12px; background:rgba(15,23,42,.5); }
+    .settings-body.open { display:block; }
+
+    @media(max-width:640px){
+      body{padding:10px;} .input-section{grid-template-columns:1fr;} .results-grid{grid-template-columns:repeat(2,1fr);}
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1><span style="-webkit-text-fill-color:initial">👔</span> Size Converter</h1>
+  <p class="subtitle">Convertí talles de ropa y calzado entre sistemas internacionales</p>
+
+  <div class="section">
+    <h2>📐 Categoría</h2>
+    <div class="tabs" id="tabs"></div>
+
+    <div class="input-section">
+      <div class="input-panel">
+        <h3>¿Cómo querés buscar?</h3>
+        <div class="mode-toggle">
+          <button class="mode-btn active" id="mode-talle" onclick="setMode('talle')">Por talle</button>
+          <button class="mode-btn"        id="mode-cm"    onclick="setMode('cm')">Por medida (cm)</button>
+        </div>
+
+        <div id="panel-talle">
+          <div class="input-group">
+            <label>Mi sistema de talles</label>
+            <div class="region-btns" id="region-btns"></div>
+          </div>
+          <div class="input-group">
+            <label id="sel-label">Mi talle</label>
+            <select id="size-sel"></select>
+          </div>
+        </div>
+
+        <div id="panel-cm" style="display:none">
+          <div class="input-group">
+            <label id="cm-label">Medida de referencia</label>
+            <div class="cm-wrap">
+              <input type="number" id="cm-input" placeholder="ej: 92" min="10" max="250" step="0.5" oninput="onCmInput()">
+              <span class="cm-unit">cm</span>
+            </div>
+            <div class="cm-hint" id="cm-hint"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="input-panel">
+        <h3>📏 Cómo medirte</h3>
+        <p id="tip-text" style="font-size:.875rem;color:var(--text-secondary);line-height:1.6;"></p>
+        <div id="tip-diagram" style="margin-top:10px;"></div>
+      </div>
+    </div>
+
+    <div id="results"></div>
+  </div>
+
+  <div>
+    <div class="settings-header" onclick="document.getElementById('sb').classList.toggle('open');document.getElementById('ch').classList.toggle('open')">
+      <span>⚙️ Preferencias guardadas</span>
+      <span class="chevron" id="ch">▼</span>
+    </div>
+    <div class="settings-body" id="sb">
+      <p style="font-size:.85rem;color:var(--text-muted);margin-bottom:12px;">Tu sistema y último talle se guardan automáticamente por categoría.</p>
+      <button onclick="clearPrefs()" style="padding:8px 16px;border:1px solid var(--danger);background:rgba(239,68,68,.1);color:var(--danger);border-radius:6px;cursor:pointer;font-family:inherit;font-size:.85rem;">🗑 Limpiar preferencias</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const CATS = {
+  "tops-m": {
+    label:"Tops Hombre", icon:"👕",
+    cm_label:"Contorno de pecho (cm)", cm_key:"chest",
+    tip:"Pasá la cinta por la parte más ancha del pecho, justo debajo de las axilas. Brazos relajados, cinta paralela al suelo.",
+    diagram:"Pecho → bajo axilas, cinta paralela al suelo.",
+    systems:["EU/AR","US/UK","IT","FR","JP"],
+    table:[
+      {s:{"EU/AR":"XS","US/UK":"XS","IT":"44","FR":"34","JP":"SS"}, chest:[80,86],  note:"Extra Small"},
+      {s:{"EU/AR":"S", "US/UK":"S", "IT":"46","FR":"36","JP":"S" }, chest:[87,91],  note:"Small"},
+      {s:{"EU/AR":"M", "US/UK":"M", "IT":"48","FR":"38","JP":"M" }, chest:[92,96],  note:"Medium"},
+      {s:{"EU/AR":"L", "US/UK":"L", "IT":"50","FR":"40","JP":"L" }, chest:[97,102], note:"Large"},
+      {s:{"EU/AR":"XL","US/UK":"XL","IT":"52","FR":"42","JP":"LL"}, chest:[103,108],note:"Extra Large"},
+      {s:{"EU/AR":"XXL","US/UK":"XXL","IT":"54","FR":"44","JP":"3L"},chest:[109,116],note:"2XL"},
+      {s:{"EU/AR":"3XL","US/UK":"3XL","IT":"56","FR":"46","JP":"4L"},chest:[117,124],note:"3XL"},
+    ],
+  },
+  "pants-m": {
+    label:"Pantalones Hombre", icon:"👖",
+    cm_label:"Contorno de cintura (cm)", cm_key:"waist",
+    tip:"Medí la cintura natural a la altura del ombligo, sin contraer el abdomen. Para el largo: desde la entrepierna hasta el tobillo.",
+    diagram:"Cintura → ombligo. Largo → entrepierna al tobillo.",
+    systems:["EU/AR","US/UK","IT","FR"],
+    table:[
+      {s:{"EU/AR":"38","US/UK":"28","IT":"38","FR":"38"}, waist:[70,74],  note:""},
+      {s:{"EU/AR":"40","US/UK":"30","IT":"40","FR":"40"}, waist:[75,79],  note:""},
+      {s:{"EU/AR":"42","US/UK":"32","IT":"42","FR":"42"}, waist:[80,84],  note:""},
+      {s:{"EU/AR":"44","US/UK":"34","IT":"44","FR":"44"}, waist:[85,89],  note:""},
+      {s:{"EU/AR":"46","US/UK":"36","IT":"46","FR":"46"}, waist:[90,94],  note:""},
+      {s:{"EU/AR":"48","US/UK":"38","IT":"48","FR":"48"}, waist:[95,99],  note:""},
+      {s:{"EU/AR":"50","US/UK":"40","IT":"50","FR":"50"}, waist:[100,104],note:""},
+      {s:{"EU/AR":"52","US/UK":"42","IT":"52","FR":"52"}, waist:[105,110],note:""},
+    ],
+  },
+  "tops-w": {
+    label:"Tops Mujer", icon:"👗",
+    cm_label:"Contorno de busto (cm)", cm_key:"bust",
+    tip:"Medí el busto por la parte más prominente del pecho. Si estás entre dos talles, elegí el más grande.",
+    diagram:"Busto → parte más ancha del pecho.",
+    systems:["EU/AR","US","UK","IT","FR","JP"],
+    table:[
+      {s:{"EU/AR":"34","US":"0", "UK":"6", "IT":"36","FR":"34","JP":"5" }, bust:[76,80],  note:"XXS"},
+      {s:{"EU/AR":"36","US":"2", "UK":"8", "IT":"38","FR":"36","JP":"7" }, bust:[81,84],  note:"XS"},
+      {s:{"EU/AR":"38","US":"4", "UK":"10","IT":"40","FR":"38","JP":"9" }, bust:[85,88],  note:"S"},
+      {s:{"EU/AR":"40","US":"6", "UK":"12","IT":"42","FR":"40","JP":"11"}, bust:[89,92],  note:"M"},
+      {s:{"EU/AR":"42","US":"8", "UK":"14","IT":"44","FR":"42","JP":"13"}, bust:[93,96],  note:"L"},
+      {s:{"EU/AR":"44","US":"10","UK":"16","IT":"46","FR":"44","JP":"15"}, bust:[97,101], note:"XL"},
+      {s:{"EU/AR":"46","US":"12","UK":"18","IT":"48","FR":"46","JP":"17"}, bust:[102,106],note:"XXL"},
+      {s:{"EU/AR":"48","US":"14","UK":"20","IT":"50","FR":"48","JP":"19"}, bust:[107,112],note:"3XL"},
+    ],
+  },
+  "pants-w": {
+    label:"Pantalones Mujer", icon:"🧣",
+    cm_label:"Contorno de cadera (cm)", cm_key:"hip",
+    tip:"Medí la cadera por la parte más ancha. También anotá la cintura (a nivel del ombligo) si el corte es alto.",
+    diagram:"Cadera → parte más ancha. Cintura → ombligo.",
+    systems:["EU/AR","US","UK","IT","FR"],
+    table:[
+      {s:{"EU/AR":"34","US":"0", "UK":"6", "IT":"36","FR":"34"}, hip:[82,86],  waist:[60,64], note:"XXS"},
+      {s:{"EU/AR":"36","US":"2", "UK":"8", "IT":"38","FR":"36"}, hip:[87,90],  waist:[65,68], note:"XS"},
+      {s:{"EU/AR":"38","US":"4", "UK":"10","IT":"40","FR":"38"}, hip:[91,94],  waist:[69,72], note:"S"},
+      {s:{"EU/AR":"40","US":"6", "UK":"12","IT":"42","FR":"40"}, hip:[95,98],  waist:[73,76], note:"M"},
+      {s:{"EU/AR":"42","US":"8", "UK":"14","IT":"44","FR":"42"}, hip:[99,102], waist:[77,80], note:"L"},
+      {s:{"EU/AR":"44","US":"10","UK":"16","IT":"46","FR":"44"}, hip:[103,107],waist:[81,84], note:"XL"},
+      {s:{"EU/AR":"46","US":"12","UK":"18","IT":"48","FR":"46"}, hip:[108,112],waist:[85,88], note:"XXL"},
+      {s:{"EU/AR":"48","US":"14","UK":"20","IT":"50","FR":"48"}, hip:[113,118],waist:[89,93], note:"3XL"},
+    ],
+  },
+  "shoes-m": {
+    label:"Calzado Hombre", icon:"👟",
+    cm_label:"Largo del pie (cm)", cm_key:"foot",
+    tip:"Apoyá el pie sobre papel, marcá talón y dedo más largo, medí la distancia. Hacelo al final del día cuando el pie está en su máximo tamaño.",
+    diagram:"Pie → desde talón hasta el dedo más largo.",
+    systems:["EU","US","UK","JP/CM"],
+    table:[
+      {s:{"EU":"38","US":"5.5","UK":"5",   "JP/CM":"24"},   foot:[23.5,24.1],note:""},
+      {s:{"EU":"39","US":"6.5","UK":"6",   "JP/CM":"24.5"}, foot:[24.2,24.8],note:""},
+      {s:{"EU":"40","US":"7",  "UK":"6.5", "JP/CM":"25"},   foot:[24.9,25.4],note:""},
+      {s:{"EU":"41","US":"7.5","UK":"7",   "JP/CM":"25.5"}, foot:[25.5,26.0],note:""},
+      {s:{"EU":"42","US":"8",  "UK":"7.5", "JP/CM":"26"},   foot:[26.1,26.6],note:""},
+      {s:{"EU":"43","US":"8.5","UK":"8",   "JP/CM":"26.5"}, foot:[26.7,27.2],note:""},
+      {s:{"EU":"44","US":"9",  "UK":"8.5", "JP/CM":"27"},   foot:[27.3,27.8],note:""},
+      {s:{"EU":"45","US":"9.5","UK":"9",   "JP/CM":"27.5"}, foot:[27.9,28.4],note:""},
+      {s:{"EU":"46","US":"10", "UK":"9.5", "JP/CM":"28"},   foot:[28.5,29.0],note:""},
+      {s:{"EU":"47","US":"11", "UK":"10.5","JP/CM":"29"},   foot:[29.1,29.8],note:""},
+    ],
+  },
+  "shoes-w": {
+    label:"Calzado Mujer", icon:"👠",
+    cm_label:"Largo del pie (cm)", cm_key:"foot",
+    tip:"Medí el pie al final del día. Marcá talón y dedo más largo sobre una hoja y medí la distancia. Si dudás entre dos talles, elegí el más grande.",
+    diagram:"Pie → desde talón hasta el dedo más largo.",
+    systems:["EU","US","UK","JP/CM"],
+    table:[
+      {s:{"EU":"35",  "US":"4.5","UK":"2.5","JP/CM":"22"},   foot:[21.5,22.0],note:""},
+      {s:{"EU":"35.5","US":"5",  "UK":"3",  "JP/CM":"22.5"}, foot:[22.1,22.5],note:""},
+      {s:{"EU":"36",  "US":"5.5","UK":"3.5","JP/CM":"23"},   foot:[22.6,23.0],note:""},
+      {s:{"EU":"36.5","US":"6",  "UK":"4",  "JP/CM":"23"},   foot:[23.1,23.4],note:""},
+      {s:{"EU":"37",  "US":"6.5","UK":"4.5","JP/CM":"23.5"}, foot:[23.5,23.9],note:""},
+      {s:{"EU":"37.5","US":"7",  "UK":"5",  "JP/CM":"24"},   foot:[24.0,24.3],note:""},
+      {s:{"EU":"38",  "US":"7.5","UK":"5.5","JP/CM":"24"},   foot:[24.4,24.7],note:""},
+      {s:{"EU":"38.5","US":"8",  "UK":"6",  "JP/CM":"24.5"}, foot:[24.8,25.1],note:""},
+      {s:{"EU":"39",  "US":"8.5","UK":"6.5","JP/CM":"25"},   foot:[25.2,25.6],note:""},
+      {s:{"EU":"40",  "US":"9",  "UK":"7",  "JP/CM":"25.5"}, foot:[25.7,26.1],note:""},
+      {s:{"EU":"41",  "US":"10", "UK":"8",  "JP/CM":"26"},   foot:[26.2,26.8],note:""},
+    ],
+  },
+};
+
+const SYS_FULL = {
+  "EU/AR":"Europa · Argentina","EU":"Europa","US/UK":"US · Reino Unido",
+  "US":"Estados Unidos","UK":"Reino Unido","IT":"Italia","FR":"Francia",
+  "JP":"Japón","JP/CM":"Japón · cm"
+};
+
+// State
+const SK = "sizeconv_v2";
+let st = {cat:"tops-m", mode:"talle", region:{}, lastSize:{}, lastCm:{}};
+try{ const r=localStorage.getItem(SK); if(r) st={...st,...JSON.parse(r)}; }catch(_){}
+const save = () => { try{ localStorage.setItem(SK,JSON.stringify(st)); }catch(_){} };
+
+// Init
+function init(){
+  buildTabs();
+  selectCat(st.cat, false);
+  setMode(st.mode||"talle", false);
+}
+
+function buildTabs(){
+  const el=document.getElementById("tabs"); el.innerHTML="";
+  Object.entries(CATS).forEach(([k,c])=>{
+    const b=document.createElement("button");
+    b.className="tab"+(k===st.cat?" active":"");
+    b.textContent=c.icon+" "+c.label;
+    b.onclick=()=>selectCat(k);
+    el.appendChild(b);
+  });
+}
+
+function selectCat(key, doSave=true){
+  st.cat=key; if(doSave) save();
+  document.querySelectorAll(".tab").forEach((t,i)=>{
+    t.className="tab"+(Object.keys(CATS)[i]===key?" active":"");
+  });
+  const cat=CATS[key];
+  if(!st.region[key]) st.region[key]=cat.systems[0];
+
+  // Region buttons
+  const rb=document.getElementById("region-btns"); rb.innerHTML="";
+  cat.systems.forEach(sys=>{
+    const b=document.createElement("button");
+    b.className="region-btn"+(sys===st.region[key]?" active":"");
+    b.textContent=sys;
+    b.onclick=()=>{ st.region[st.cat]=sys; save(); refreshRegion(); buildSizeSelect(); render(); };
+    rb.appendChild(b);
+  });
+
+  // Tip
+  document.getElementById("tip-text").textContent=cat.tip;
+  document.getElementById("tip-diagram").innerHTML=cat.diagram
+    ?`<div style="background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.2);border-radius:8px;padding:10px 12px;font-size:.8rem;color:var(--text-muted);margin-top:8px;">📐 ${cat.diagram}</div>`:"";
+
+  // CM label & restore
+  document.getElementById("cm-label").textContent=cat.cm_label;
+  const savedCm=st.lastCm[key]||"";
+  document.getElementById("cm-input").value=savedCm;
+  updateCmHint(savedCm?parseFloat(savedCm):null);
+
+  refreshRegion();
+  buildSizeSelect();
+  render();
+}
+
+function refreshRegion(){
+  const key=st.cat;
+  document.querySelectorAll(".region-btn").forEach(b=>{
+    b.className="region-btn"+(b.textContent===st.region[key]?" active":"");
+  });
+  document.getElementById("sel-label").textContent="Mi talle ("+st.region[key]+")";
+}
+
+function buildSizeSelect(){
+  const key=st.cat, cat=CATS[key], region=st.region[key];
+  const sel=document.getElementById("size-sel");
+  const prev=st.lastSize[key];
+  sel.innerHTML='<option value="">— Elegí tu talle —</option>';
+  cat.table.forEach(row=>{
+    const v=row.s[region]; if(!v) return;
+    const o=document.createElement("option");
+    o.value=v; o.textContent=v;
+    if(v===prev) o.selected=true;
+    sel.appendChild(o);
+  });
+  sel.onchange=()=>{ st.lastSize[st.cat]=sel.value; save(); render(); };
+}
+
+function setMode(mode, doSave=true){
+  st.mode=mode; if(doSave) save();
+  document.getElementById("mode-talle").className="mode-btn"+(mode==="talle"?" active":"");
+  document.getElementById("mode-cm").className   ="mode-btn"+(mode==="cm"   ?" active":"");
+  document.getElementById("panel-talle").style.display=mode==="talle"?"":"none";
+  document.getElementById("panel-cm").style.display   =mode==="cm"   ?"":"none";
+  render();
+}
+
+function onCmInput(){
+  const v=document.getElementById("cm-input").value;
+  st.lastCm[st.cat]=v; save();
+  updateCmHint(v?parseFloat(v):null);
+  render();
+}
+
+function updateCmHint(val){
+  const hint=document.getElementById("cm-hint");
+  if(!val||isNaN(val)){hint.innerHTML="";return;}
+  const row=bestMatchByCm(val);
+  if(row){
+    const first=Object.values(row.s)[0];
+    hint.innerHTML=`<span style="color:var(--success)">✓ Mejor match: talle ${first}</span>`;
+  } else {
+    hint.innerHTML=`<span style="color:var(--warning)">⚠️ Fuera del rango de la tabla</span>`;
+  }
+}
+
+function bestMatchByCm(val){
+  const cat=CATS[st.cat], key=cat.cm_key;
+  for(const row of cat.table){
+    const r=row[key]; if(r && val>=r[0] && val<=r[1]) return row;
+  }
+  // closest midpoint
+  let best=null, bestD=Infinity;
+  for(const row of cat.table){
+    const r=row[key]; if(!r) continue;
+    const d=Math.abs(val-(r[0]+r[1])/2);
+    if(d<bestD){bestD=d;best=row;}
+  }
+  return bestD<10?best:null;
+}
+
+function render(){
+  const container=document.getElementById("results");
+  const cat=CATS[st.cat];
+  let row=null, isCm=st.mode==="cm";
+
+  if(isCm){
+    const val=parseFloat(document.getElementById("cm-input").value);
+    if(!val||isNaN(val)){
+      container.innerHTML='<div class="empty">Ingresá tu medida en cm para ver los talles equivalentes 📏</div>';
+      return;
+    }
+    row=bestMatchByCm(val);
+    if(!row){container.innerHTML='<div class="empty">La medida está fuera del rango disponible</div>';return;}
+  } else {
+    const sel=document.getElementById("size-sel").value;
+    if(!sel){container.innerHTML='<div class="empty">Seleccioná tu talle para ver las conversiones ✨</div>';return;}
+    const region=st.region[st.cat];
+    row=cat.table.find(r=>r.s[region]===sel);
+    if(!row){container.innerHTML='<div class="empty">No se encontró equivalencia</div>';return;}
+  }
+
+  const grid=document.createElement("div");
+  grid.className="results-grid";
+  const myRegion=st.region[st.cat];
+
+  cat.systems.forEach((sys,idx)=>{
+    const val=row.s[sys]; if(!val) return;
+    const isMine=!isCm&&sys===myRegion;
+    const isFirst=isCm&&idx===0;
+    const card=document.createElement("div");
+    card.className="result-card"+(isMine?" my-size":isFirst?" best-match":"");
+    card.innerHTML=`
+      <div class="region-name">${sys}</div>
+      <div class="size-value">${val}</div>
+      <div class="size-sub">${SYS_FULL[sys]||sys}</div>
+      ${isMine?'<span class="badge badge-mine">📍 mi talle</span>':""}
+      ${isFirst?'<span class="badge badge-match">✓ mejor match</span>':""}`;
+    grid.appendChild(card);
+  });
+
+  // Tarjeta rango cm (medida principal)
+  const cmKey=cat.cm_key, range=row[cmKey];
+  if(range){
+    const card=document.createElement("div");
+    card.className="result-card cm-card";
+    card.innerHTML=`
+      <div class="region-name">${cat.cm_label.replace(/\(cm\)/,"").trim()}</div>
+      <div class="size-value">${range[0]}–${range[1]}</div>
+      <div class="size-sub">cm</div>
+      <span class="badge badge-cm">📐 medida</span>`;
+    grid.appendChild(card);
+  }
+
+  // Extra: cintura para pantalones mujer
+  if(st.cat==="pants-w"&&row.waist){
+    const card=document.createElement("div");
+    card.className="result-card cm-card";
+    card.innerHTML=`
+      <div class="region-name">Cintura</div>
+      <div class="size-value">${row.waist[0]}–${row.waist[1]}</div>
+      <div class="size-sub">cm</div>
+      <span class="badge badge-cm">📐 medida</span>`;
+    grid.appendChild(card);
+  }
+
+  // Nota
+  if(row.note){
+    const card=document.createElement("div");
+    card.className="result-card";
+    card.innerHTML=`<div class="region-name">Descripción</div><div class="size-value" style="font-size:1.2rem">${row.note}</div>`;
+    grid.appendChild(card);
+  }
+
+  container.innerHTML="";
+  container.appendChild(grid);
+}
+
+function clearPrefs(){
+  st={cat:"tops-m",mode:"talle",region:{},lastSize:{},lastCm:{}};
+  save(); init(); buildTabs();
+}
+
+init();
+</script>
+</body>
+</html>
