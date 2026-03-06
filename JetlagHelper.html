@@ -124,6 +124,16 @@
     .note { font-size:.82rem; color:var(--text-secondary); margin-top:10px; padding:8px 12px;
             background:rgba(245,158,11,.06); border-left:3px solid rgba(245,158,11,.4); border-radius:0 6px 6px 0; }
 
+
+    /* Stepper */
+    .stepper-wrap { display:flex; align-items:center; gap:0; border:1px solid var(--border); border-radius:8px; overflow:hidden; background:var(--bg-secondary); height:43px; }
+    .stepper-btn { background:var(--bg-tertiary); border:none; color:var(--text-primary); font-size:1.2rem; width:40px; height:100%; cursor:pointer; transition:background .15s; flex-shrink:0; font-family:inherit; }
+    .stepper-btn:hover { background:#475569; }
+    #sleep-dur-display { flex:1; text-align:center; font-size:.95rem; font-weight:600; color:var(--text-primary); user-select:none; }
+
+    /* Reset button */
+    .btn-reset { padding:14px 18px; background:transparent; color:var(--text-muted); border:1px solid var(--border); border-radius:10px; font-family:inherit; font-size:.88rem; font-weight:600; cursor:pointer; transition:all .2s; white-space:nowrap; }
+    .btn-reset:hover { background:rgba(239,68,68,.1); color:#f87171; border-color:rgba(239,68,68,.4); }
     @media(max-width:600px) { body{padding:10px;} .form-grid{grid-template-columns:1fr;} .summary-grid{grid-template-columns:repeat(2,1fr);} }
   </style>
 </head>
@@ -176,19 +186,32 @@
         <label>Duración del vuelo</label>
         <input type="text" id="duration" placeholder="ej: 12h 30m o 8h">
       </div>
-      <div class="form-group">
+      <div class="form-group" style="grid-column:1/-1">
         <label>Tu horario de sueño habitual</label>
-        <select id="sleep-sel">
-          <option value="22-6">10pm – 6am (8h)</option>
-          <option value="23-7">11pm – 7am (8h)</option>
-          <option value="0-8" selected>12am – 8am (8h)</option>
-          <option value="1-9">1am – 9am (8h)</option>
-          <option value="23-6">11pm – 6am (7h)</option>
-          <option value="22-7">10pm – 7am (9h)</option>
-        </select>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div>
+            <div style="font-size:.75rem;color:var(--text-muted);margin-bottom:4px;">¿A qué hora te dormís?</div>
+            <input type="time" id="sleep-time" value="00:00">
+          </div>
+          <div>
+            <div style="font-size:.75rem;color:var(--text-muted);margin-bottom:4px;">¿Cuántas horas dormís?</div>
+            <div class="stepper-wrap">
+              <button type="button" class="stepper-btn" onclick="stepSleep(-0.5)">−</button>
+              <span id="sleep-dur-display">8h</span>
+              <button type="button" class="stepper-btn" onclick="stepSleep(0.5)">+</button>
+              <input type="hidden" id="sleep-dur" value="8">
+            </div>
+          </div>
+        </div>
+        <div id="sleep-preview" style="margin-top:6px;font-size:.8rem;color:var(--primary-light);padding:5px 10px;background:rgba(245,158,11,.08);border-radius:6px;border:1px solid rgba(245,158,11,.2);">
+          Dormís de 00:00 a 08:00
+        </div>
       </div>
     </div>
-    <button class="btn-primary" id="calc-btn" onclick="calculate()">⚡ Calcular plan de sueño</button>
+    <div style="display:grid;grid-template-columns:1fr auto;gap:10px;margin-top:20px;align-items:center">
+      <button class="btn-primary" id="calc-btn" onclick="calculate()" style="margin-top:0">⚡ Calcular plan de sueño</button>
+      <button class="btn-reset" onclick="resetAll()" title="Borrar todos los datos">🗑 Reiniciar</button>
+    </div>
   </div>
 
   <div id="results" style="display:none">
@@ -330,7 +353,18 @@ const SK = "jetlag_v2";
 let saved = {};
 try { const r = localStorage.getItem(SK); if (r) saved = JSON.parse(r); } catch(_) {}
 
-// Ciudades seleccionadas: { from: {name, tz} | null, to: {name, tz} | null }
+// Cache de ciudades buscadas online
+const CITY_CACHE_KEY = "jetlag_city_cache";
+let onlineCityCache = [];
+try { const r = localStorage.getItem(CITY_CACHE_KEY); if (r) onlineCityCache = JSON.parse(r); } catch(_) {}
+
+function saveCityToCache(item) {
+  const norm = s => (s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (onlineCityCache.some(c => norm(c.name) === norm(item.name) && c.tz === item.tz)) return;
+  onlineCityCache.unshift(item);
+  if (onlineCityCache.length > 60) onlineCityCache = onlineCityCache.slice(0, 60);
+  try { localStorage.setItem(CITY_CACHE_KEY, JSON.stringify(onlineCityCache)); } catch(_) {}
+}
 let selected = { from: saved.from || null, to: saved.to || null };
 
 // Estado del dropdown: qué campo está activo
@@ -341,10 +375,18 @@ let debounceTimer = null;
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 function init() {
   // Rellenar fecha por defecto
-  document.getElementById("dep-date").value = saved.date || new Date().toISOString().split("T")[0];
-  document.getElementById("dep-time").value = saved.time || "08:00";
-  document.getElementById("duration").value  = saved.dur  || "";
-  if (saved.sleep) document.getElementById("sleep-sel").value = saved.sleep;
+  document.getElementById("dep-date").value    = saved.date      || new Date().toISOString().split("T")[0];
+  document.getElementById("dep-time").value    = saved.time      || "08:00";
+  document.getElementById("duration").value    = saved.dur       || "";
+  document.getElementById("sleep-time").value  = saved.sleepTime || "00:00";
+  document.getElementById("sleep-dur").value   = saved.sleepDur  || "8";
+  const _sd = parseFloat(saved.sleepDur || "8");
+  document.getElementById("sleep-dur-display").textContent = (Number.isInteger(_sd) ? _sd : _sd) + "h";
+  updateSleepPreview();
+
+  // Wire up live preview
+  document.getElementById("sleep-time").addEventListener("input", updateSleepPreview);
+  document.getElementById("sleep-dur").addEventListener("input", updateSleepPreview);
 
   // Restaurar ciudades guardadas
   if (selected.from) showSelectedCity("from", selected.from);
@@ -380,15 +422,22 @@ function onSearchKey(e, field) {
 
 function doSearch(field, q) {
   activeField = field;
-  const norm = s => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const norm = s => (s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   const lower = norm(q);
   const offline = TZ_LIST.filter(item => {
     return norm(item.name).includes(lower) || norm(item.tz).includes(lower);
   }).slice(0, 8);
 
-  showDropdownResults(field, offline, q, false);
+  // Also search the online city cache
+  const cached = onlineCityCache.filter(item => {
+    return norm(item.name).includes(lower) || norm(item.tz).includes(lower);
+  }).filter(c => !offline.some(o => norm(o.name) === norm(c.name) && o.tz === c.tz))
+    .slice(0, 4);
 
-  if (offline.length < 3 && navigator.onLine) {
+  const combined = [...offline, ...cached].slice(0, 10);
+  showDropdownResults(field, combined, q, false);
+
+  if (combined.length < 3 && navigator.onLine) {
     searchOnline(field, q);
   }
 }
@@ -459,9 +508,11 @@ async function searchOnline(field, q) {
       const tz = guessTimezoneFromCoords(parseFloat(item.lat), parseFloat(item.lon));
       const cleanName = (item.display_name || "").split(",")[0].trim();
       const country = (item.display_name || "").split(",").slice(-1)[0].trim();
-      const norm = s => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      const norm = s => (s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
       if (!TZ_LIST.some(t => norm(t.name) === norm(cleanName) && t.tz === tz)) {
-        extras.push({ name: cleanName, tz, country });
+        const cityObj = { name: cleanName, tz, country };
+        extras.push(cityObj);
+        saveCityToCache(cityObj);
       }
     }
 
@@ -549,20 +600,20 @@ function clearCity(field) {
 }
 
 // ─── TIMEZONE OFFSET ─────────────────────────────────────────────────────────
-// Obtiene el offset real en horas para una timezone IANA usando Intl
 function getTzOffset(tzName) {
   try {
     const now = new Date();
-    const fmt = new Intl.DateTimeFormat("en-CA", {
-      timeZone: tzName, hour:"numeric", minute:"numeric",
-      hour12: false, timeZoneName:"short"
-    });
-    // Comparar la hora local de esa TZ con UTC
-    const utcNow = new Date(now.toLocaleString("en-CA", {timeZone:"UTC"}));
-    const tzNow  = new Date(now.toLocaleString("en-CA", {timeZone: tzName}));
-    return (tzNow - utcNow) / 3600000;
+    const getParts = (tz) => {
+      const parts = new Intl.DateTimeFormat("en-US", {
+        timeZone: tz, year:"numeric", month:"numeric", day:"numeric",
+        hour:"numeric", minute:"numeric", second:"numeric", hour12:false
+      }).formatToParts(now);
+      const get = (type) => parseInt(parts.find(p => p.type === type)?.value || "0");
+      let h = get("hour"); if (h === 24) h = 0;
+      return Date.UTC(get("year"), get("month") - 1, get("day"), h, get("minute"), get("second"));
+    };
+    return Math.round((getParts(tzName) - getParts("UTC")) / 3600000 * 4) / 4;
   } catch(_) {
-    // Fallback: intentar leer offset de Etc/GMT
     const m = tzName.match(/Etc\/GMT([+-]\d+)/);
     if (m) return -parseInt(m[1]);
     return 0;
@@ -572,14 +623,26 @@ function getTzOffset(tzName) {
 // ─── PERSISTENCIA ─────────────────────────────────────────────────────────────
 function saveInputs() {
   const s = {
-    from:  selected.from,
-    to:    selected.to,
-    date:  document.getElementById("dep-date").value,
-    time:  document.getElementById("dep-time").value,
-    dur:   document.getElementById("duration").value,
-    sleep: document.getElementById("sleep-sel").value,
+    from:      selected.from,
+    to:        selected.to,
+    date:      document.getElementById("dep-date").value,
+    time:      document.getElementById("dep-time").value,
+    dur:       document.getElementById("duration").value,
+    sleepTime: document.getElementById("sleep-time").value,
+    sleepDur:  document.getElementById("sleep-dur").value,
   };
   try { localStorage.setItem(SK, JSON.stringify(s)); saved = s; } catch(_) {}
+}
+
+// ─── SLEEP PREVIEW ────────────────────────────────────────────────────────────
+function updateSleepPreview() {
+  const timeVal = document.getElementById("sleep-time").value || "00:00";
+  const durVal  = parseFloat(document.getElementById("sleep-dur").value) || 8;
+  const [h, m]  = timeVal.split(":").map(Number);
+  const startH  = h + m / 60;
+  const endH    = (startH + durVal) % 24;
+  const prev    = document.getElementById("sleep-preview");
+  if (prev) prev.textContent = `Dormís de ${fmt(startH)} a ${fmt(endH)} (${durVal}h)`;
 }
 
 // ─── CÁLCULO ──────────────────────────────────────────────────────────────────
@@ -621,13 +684,17 @@ function calculate() {
   const [depH, depM] = depTime.split(":").map(Number);
   const arrLocalH = ((depH + depM / 60 + durH + diff) % 24 + 24) % 24;
 
-  const recovDays = Math.max(1, Math.ceil(absDiff / 1.5));
+  // East is harder: ~1 day per hour. West: ~1.5 days per hour (body adapts faster going west)
+  const recovDays = Math.max(1, dir === "east" ? Math.ceil(absDiff / 1) : Math.ceil(absDiff / 1.5));
   const difficulty = Math.min(10, absDiff * (dir === "east" ? 1.2 : 1));
   const diffLabel  = difficulty <= 3 ? "Leve" : difficulty <= 5 ? "Moderado" : difficulty <= 7 ? "Considerable" : "Severo";
   const diffColor  = difficulty <= 3 ? "#10B981" : difficulty <= 5 ? "#F59E0B" : difficulty <= 7 ? "#F97316" : "#EF4444";
 
-  const sleepStr = document.getElementById("sleep-sel").value;
-  const [sleepS, sleepE] = sleepStr.split("-").map(Number);
+  const sleepTimeVal = document.getElementById("sleep-time").value || "00:00";
+  const sleepDurVal  = parseFloat(document.getElementById("sleep-dur").value) || 8;
+  const [sleepH, sleepM] = sleepTimeVal.split(":").map(Number);
+  const sleepS = sleepH + sleepM / 60;
+  const sleepE = (sleepS + sleepDurVal) % 24;
   const depDateObj = new Date(depDate + "T12:00:00");
 
   buildSummary({ absDiff, diff, dir, durH, arrLocalH, recovDays, difficulty, diffLabel, diffColor, sleepS, sleepE });
@@ -641,7 +708,7 @@ function calculate() {
 function buildSummary({ absDiff, diff, dir, durH, arrLocalH, recovDays, difficulty, diffLabel, diffColor, sleepS, sleepE }) {
   const dh = Math.floor(durH), dm = Math.round((durH - dh) * 60);
   const cards = [
-    { val: `${absDiff}h`,                        lbl: "Diferencia horaria",   hl: true },
+    { val: `${Number.isInteger(absDiff) ? absDiff : absDiff.toFixed(1)}h`, lbl: "Diferencia horaria", hl: true },
     { val: `${dh}h${dm > 0 ? " " + dm + "m" : ""}`, lbl: "Duración vuelo",   hl: false },
     { val: fmt(arrLocalH),                        lbl: "Llegada hora local",   hl: false },
     { val: `~${recovDays} días`,                  lbl: "Recuperación estim.",  hl: false },
@@ -674,16 +741,18 @@ function buildSummary({ absDiff, diff, dir, durH, arrLocalH, recovDays, difficul
     <div class="diff-note">${dirNote[dir]}</div>`;
 
   // Sleep visualization
-  const targetS = dir === "east" ? ((sleepS - absDiff + 48) % 24) : ((sleepS + absDiff) % 24);
-  const targetE = dir === "east" ? ((sleepE - absDiff + 48) % 24) : ((sleepE + absDiff) % 24);
+  // Target is always the same sleep time in local destination time
+  // bodyStart = where your biological clock actually is on arrival, in destination local time
+  const bodyStart = ((sleepS - diff) % 24 + 24) % 24;
+  const bodyEnd   = ((sleepE - diff) % 24 + 24) % 24;
   document.getElementById("sleep-viz").innerHTML = `
-    <div class="sleep-title">🕐 Horario de sueño: habitual vs. objetivo en destino</div>
-    <div style="margin-bottom:4px;font-size:.78rem;color:var(--text-muted);">Habitual (${selected.from.name}):</div>
-    ${mkBar(sleepS, sleepE)}
+    <div class="sleep-title">🕐 Horario de sueño: dónde está tu cuerpo vs. objetivo</div>
+    <div style="margin-bottom:4px;font-size:.78rem;color:var(--text-muted);">Tu cuerpo al llegar (hora local ${selected.to.name}):</div>
+    ${mkBar(bodyStart, bodyEnd)}
     <div style="margin:12px 0 4px;font-size:.78rem;color:var(--text-muted);">Objetivo en destino (${selected.to.name}):</div>
-    ${mkBar(targetS, targetE)}
+    ${mkBar(sleepS, sleepE)}
     <div style="margin-top:8px;font-size:.78rem;color:var(--text-muted);">
-      Objetivo: <strong style="color:var(--primary-light)">${fmt(targetS)} – ${fmt(targetE)}</strong> hora local en ${selected.to.name}
+      Objetivo: <strong style="color:var(--primary-light)">${fmt(sleepS)} – ${fmt(sleepE)}</strong> hora local en ${selected.to.name}
     </div>`;
 }
 
@@ -719,9 +788,20 @@ function buildPlan({ depDateObj, diff, absDiff, dir, durH, sleepS, sleepE, recov
     days.push({ type:"after", date:d, n:i });
   }
 
-  const shiftPerDay = preDays > 0 ? Math.min(2, absDiff / preDays) : 0;
-  const targetS = ((sleepS + (east ? -absDiff : absDiff)) % 24 + 24) % 24;
-  const targetE = ((sleepE + (east ? -absDiff : absDiff)) % 24 + 24) % 24;
+  // TARGET: always sleepS/sleepE in destination local time — same bedtime, just locally
+  // BODY START: where your biological clock actually is on arrival, expressed in destination local time
+  //   = sleepS - diff  (if diff=-3 CABA→CDMX: body wants 03:00 CABA = 00:00 CDMX → bodyStart=00:00... wait)
+  //   Actually: your body is still on origin time. In destination local time that means:
+  //   bodyStart = sleepS - diff  (diff = destOffset - originOffset)
+  //   CABA→CDMX: diff=-3, sleepS=3 → bodyStart = 3-(-3) = 6:00 CDMX ✓ (body wants to sleep at 3am CABA = 6am CDMX)
+  const bodyStartS = ((sleepS - diff) % 24 + 24) % 24;
+  const bodyStartE = ((sleepE - diff) % 24 + 24) % 24;
+
+  // Pre-adaptation: shift sleep in ORIGIN time toward destination
+  // East: sleep earlier each day. West: sleep later each day.
+  // Max 1.5h shift per day (comfortable adaptation limit)
+  const maxShift   = 1.5;
+  const shiftPerDay = preDays > 0 ? Math.min(maxShift, absDiff / preDays) : 0;
 
   days.forEach((day, idx) => {
     const block = document.createElement("div");
@@ -735,31 +815,53 @@ function buildPlan({ depDateObj, diff, absDiff, dir, durH, sleepS, sleepE, recov
     let recS, recE, note, refCity;
 
     if (day.type === "before") {
-      const shift = east ? -shiftPerDay * day.n : shiftPerDay * day.n;
+      // Move bedtime in ORIGIN toward destination schedule
+      // East: earlier (negative shift). West: later (positive shift).
+      const shift = east ? -(shiftPerDay * day.n) : (shiftPerDay * day.n);
       recS = ((sleepS + shift) % 24 + 24) % 24;
       recE = ((sleepE + shift) % 24 + 24) % 24;
       refCity = selected.from.name;
-      const hrs = Math.round(shiftPerDay * day.n);
+      const hrsLabel = (shiftPerDay * day.n % 1 === 0)
+        ? `${shiftPerDay * day.n}h`
+        : `${shiftPerDay * day.n}h`;
       note = east
-        ? `Acostarte ~${hrs}h más temprano (${fmt(recS)}) para pre-adaptar tu reloj al horario de ${selected.to.name}.`
-        : `Acostarte ~${hrs}h más tarde (${fmt(recS)}) para pre-adaptar tu reloj al horario de ${selected.to.name}.`;
+        ? `Acostarte ${hrsLabel} más temprano (${fmt(recS)}) en ${selected.from.name} para ir adelantando tu reloj.`
+        : `Acostarte ${hrsLabel} más tarde (${fmt(recS)}) en ${selected.from.name} para ir atrasando tu reloj.`;
+
     } else if (day.type === "flight") {
-      recS = targetS; recE = targetE;
+      // On flight day: aim for target bedtime in DESTINATION local time
+      recS = sleepS; recE = sleepE;
       refCity = selected.to.name;
-      note = `Intentá dormir cuando sea noche en ${selected.to.name} (${fmt(recS)} – ${fmt(recE)} hora destino). Usá antifaz y tapones.`;
-      if (arrLocalH >= 6 && arrLocalH <= 20) note += ` Llegás a las ${fmt(arrLocalH)}, de día: resistí dormir más hasta la noche local.`;
+      note = `Intentá dormirte a las ${fmt(sleepS)} hora de ${selected.to.name}. Sincronizate con el horario local desde el primer momento.`;
+      if (arrLocalH >= 6 && arrLocalH <= 20) note += ` Llegás a las ${fmt(arrLocalH)}, de día: aguantá despierto hasta las ${fmt(sleepS)} para no desfasar más.`;
+
     } else {
+      // Post-arrival: interpolate from bodyStart → sleepS over postDays
+      // Day 1: body is at bodyStart. Day postDays: body reaches sleepS.
+      // progress goes from 0 (day 1) to 1 (last day)
       const progress = day.n / postDays;
-      recS = ((targetS + (1 - progress) * absDiff * (east ? 1 : -1)) % 24 + 24) % 24;
-      recE = ((targetE + (1 - progress) * absDiff * (east ? 1 : -1)) % 24 + 24) % 24;
+      // Interpolate on a circular clock — find shortest path
+      let deltaS = sleepS - bodyStartS;
+      if (deltaS > 12)  deltaS -= 24;
+      if (deltaS < -12) deltaS += 24;
+      let deltaE = sleepE - bodyStartE;
+      if (deltaE > 12)  deltaE -= 24;
+      if (deltaE < -12) deltaE += 24;
+
+      recS = ((bodyStartS + progress * deltaS) % 24 + 24) % 24;
+      recE = ((bodyStartE + progress * deltaE) % 24 + 24) % 24;
       refCity = selected.to.name;
-      if (day.n === 1) {
-        note = `Primer día en ${selected.to.name}. Acostarte a las ${fmt(recS)} hora local aunque no tengas sueño. Es la señal clave para resetear el reloj.`;
-      } else if (day.n < postDays) {
-        note = `Seguís ajustando. Horario de hoy: dormir de ${fmt(recS)} a ${fmt(recE)} hora local.`;
+
+      if (day.n === postDays) {
+        recS = sleepS; recE = sleepE;
+        note = `Último día de ajuste. A partir de hoy tu reloj biológico debería estar sincronizado: ${fmt(sleepS)} – ${fmt(sleepE)} hora local.`;
       } else {
-        recS = targetS; recE = targetE;
-        note = `Para hoy deberías estar completamente adaptado. Mantené el horario de ${fmt(recS)} – ${fmt(recE)}.`;
+        const remaining = postDays - day.n;
+        note = `Tu cuerpo todavía siente ${fmt(bodyStartS + progress * deltaS > 12 ? bodyStartS + progress * deltaS - 12 : bodyStartS + progress * deltaS)} aproximadamente. Acostarte a las ${fmt(recS)} te acerca al objetivo. Quedan ~${remaining} día${remaining > 1 ? "s" : ""} de ajuste.`;
+        note = `Acostarte a las ${fmt(recS)} hora local. Tu reloj biológico se está corriendo gradualmente hacia ${fmt(sleepS)}. Quedan ~${remaining} día${remaining > 1 ? "s" : ""}.`;
+      }
+      if (day.n === 1) {
+        note = `Primer día en ${selected.to.name}. Tu cuerpo todavía quiere dormir a las ${fmt(bodyStartS)} hora local — resistí hasta las ${fmt(recS)} para empezar a correr el reloj.`;
       }
     }
 
@@ -789,6 +891,46 @@ function getTitle(day) {
   if (day.type === "flight") return "Día del vuelo";
   if (day.type === "after")  return day.n === 1 ? "Día de llegada" : `Día ${day.n} en destino`;
   return "";
+}
+
+// ─── STEPPER SUEÑO ───────────────────────────────────────────────────────────
+function stepSleep(delta) {
+  const input = document.getElementById("sleep-dur");
+  const display = document.getElementById("sleep-dur-display");
+  let val = parseFloat(input.value) || 8;
+  val = Math.min(12, Math.max(4, val + delta));
+  // Show as "Xh" or "X.5h"
+  const label = Number.isInteger(val) ? val + "h" : val + "h";
+  input.value = val;
+  display.textContent = label;
+  updateSleepPreview();
+}
+
+// ─── RESET ────────────────────────────────────────────────────────────────────
+function resetAll() {
+  if (!confirm("¿Borrar todos los datos y reiniciar?")) return;
+  try { localStorage.removeItem(SK); localStorage.removeItem(CITY_CACHE_KEY); } catch(_) {}
+  saved = {};
+  selected = { from: null, to: null };
+  onlineCityCache = [];
+
+  // Reset form fields
+  document.getElementById("dep-date").value   = new Date().toISOString().split("T")[0];
+  document.getElementById("dep-time").value   = "08:00";
+  document.getElementById("duration").value   = "";
+  document.getElementById("sleep-time").value = "00:00";
+  document.getElementById("sleep-dur").value  = "8";
+  document.getElementById("sleep-dur-display").textContent = "8h";
+  updateSleepPreview();
+
+  // Reset cities
+  clearCity("from"); clearCity("to");
+  document.getElementById("search-from").value = "";
+  document.getElementById("search-to").value   = "";
+
+  // Hide results
+  document.getElementById("results").style.display = "none";
+  window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 init();
