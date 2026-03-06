@@ -1,822 +1,901 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<title>World Time Sync</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<style>
-:root{
-  --bg: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-  --panel: #1e293b;
-  --card: #334155;
-  --accent: #22c55e;
-  --accent-hover: #16a34a;
-  --text: #f1f5f9;
-  --text-dim: #94a3b8;
-  --border: #475569;
-}
-
-* {
-  box-sizing: border-box;
-}
-
-body{
-  margin: 0;
-  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-  background: var(--bg);
-  background-attachment: fixed;
-  color: var(--text);
-  min-height: 100vh;
-}
-
-/* HEADER */
-header{
-  background: rgba(30, 41, 59, 0.95);
-  backdrop-filter: blur(10px);
-  padding: 20px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
-
-.header-content {
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-.title-section {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 20px;
-}
-
-.title-section h1 {
-  margin: 0;
-  font-size: 28px;
-  font-weight: 700;
-  background: linear-gradient(135deg, #22c55e 0%, #10b981 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.controls {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  align-items: center;
-}
-
-/* STATUS BADGE */
-#status{
-  font-weight: 600;
-  padding: 8px 16px;
-  border-radius: 20px;
-  font-size: 12px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  transition: all 0.3s;
-}
-
-#status::before {
-  content: '';
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  animation: pulse 2s infinite;
-}
-
-.online { 
-  background: rgba(22, 101, 52, 0.3);
-  color: #22c55e;
-  border: 1px solid rgba(34, 197, 94, 0.5);
-}
-
-.online::before {
-  background: #22c55e;
-}
-
-.offline { 
-  background: rgba(127, 29, 29, 0.3);
-  color: #ef4444;
-  border: 1px solid rgba(239, 68, 68, 0.5);
-}
-
-.offline::before {
-  background: #ef4444;
-  animation: none;
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
-
-/* INPUTS & BUTTONS */
-input, button{
-  padding: 10px 16px;
-  border-radius: 12px;
-  border: none;
-  font-size: 14px;
-  font-family: inherit;
-  transition: all 0.2s;
-}
-
-input {
-  background: rgba(51, 65, 85, 0.6);
-  color: var(--text);
-  border: 1px solid var(--border);
-}
-
-input:focus {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
-}
-
-button{ 
-  cursor: pointer;
-  font-weight: 600;
-  background: var(--accent);
-  color: #0f172a;
-}
-
-button:hover {
-  background: var(--accent-hover);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
-}
-
-button:active {
-  transform: translateY(0);
-}
-
-/* SEARCH BOX */
-.searchBox { 
-  position: relative;
-  flex: 1;
-  min-width: 280px;
-  max-width: 400px;
-}
-
-.searchBox input {
-  width: 100%;
-  padding-left: 40px;
-}
-
-.searchBox::before {
-  content: '🔍';
-  position: absolute;
-  left: 14px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 16px;
-  pointer-events: none;
-  z-index: 1;
-}
-
-#results{
-  position: absolute;
-  top: 48px;
-  left: 0;
-  right: 0;
-  max-height: 300px;
-  overflow: auto;
-  background: var(--panel);
-  border-radius: 12px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-  z-index: 20;
-  border: 1px solid var(--border);
-}
-
-.result{
-  padding: 12px 16px;
-  cursor: pointer;
-  transition: background 0.2s;
-  border-bottom: 1px solid rgba(71, 85, 105, 0.3);
-}
-
-.result:last-child {
-  border-bottom: none;
-}
-
-.result:hover{ 
-  background: var(--card);
-}
-
-/* TIME CONTROLS */
-.time-controls {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  background: rgba(51, 65, 85, 0.4);
-  padding: 8px 12px;
-  border-radius: 12px;
-  border: 1px solid var(--border);
-}
-
-.toggle-label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  user-select: none;
-  font-size: 14px;
-  color: var(--text-dim);
-}
-
-input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
-  cursor: pointer;
-  accent-color: var(--accent);
-}
-
-input[type="time"] {
-  min-width: 120px;
-}
-
-/* CITIES CONTAINER */
-#cities{ 
-  padding: 24px;
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-.empty-state {
-  text-align: center;
-  padding: 60px 20px;
-  color: var(--text-dim);
-}
-
-.empty-state h2 {
-  font-size: 24px;
-  margin-bottom: 12px;
-  color: var(--text);
-}
-
-.empty-state p {
-  font-size: 16px;
-  margin: 0;
-}
-
-/* CITY CARDS */
-.city{
-  background: var(--card);
-  border-radius: 16px;
-  padding: 20px;
-  margin-bottom: 16px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  transition: all 0.3s;
-  cursor: grab;
-  border: 2px solid transparent;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
-  animation: slideIn 0.3s ease-out;
-}
-
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.city:hover{ 
-  transform: translateY(-4px);
-  box-shadow: 0 12px 24px -4px rgba(0, 0, 0, 0.3);
-}
-
-.city:active {
-  cursor: grabbing;
-}
-
-.city.base{ 
-  border-color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent), 0 12px 24px -4px rgba(34, 197, 94, 0.3);
-}
-
-.city-info {
-  flex: 1;
-}
-
-.city-name {
-  font-size: 18px;
-  font-weight: 600;
-  margin-bottom: 4px;
-  color: var(--text);
-}
-
-.city-time {
-  font-size: 32px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 1px;
-}
-
-.city-period {
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  margin-top: 4px;
-  opacity: 0.8;
-  letter-spacing: 1px;
-}
-
-.city-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.city-actions button {
-  width: 40px;
-  height: 40px;
-  padding: 0;
-  border-radius: 10px;
-  font-size: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(51, 65, 85, 0.6);
-}
-
-.city-actions button:hover {
-  background: var(--accent);
-}
-
-.city-actions button.base-btn {
-  background: var(--accent);
-}
-
-.city-actions button.base-btn:hover {
-  background: var(--accent-hover);
-}
-
-.city-actions button.remove-btn:hover {
-  background: #ef4444;
-}
-
-/* PERIOD COLORS */
-.night{ 
-  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-  color: #cbd5e1;
-}
-
-.night .city-time {
-  color: #94a3b8;
-}
-
-.morning{ 
-  background: linear-gradient(135deg, #0369a1 0%, #0284c7 100%);
-  color: #e0f2fe;
-}
-
-.morning .city-time {
-  color: #f0f9ff;
-}
-
-.afternoon{ 
-  background: linear-gradient(135deg, #ea580c 0%, #f97316 100%);
-  color: #ffedd5;
-}
-
-.afternoon .city-time {
-  color: #fff7ed;
-}
-
-.evening{ 
-  background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%);
-  color: #ede9fe;
-}
-
-.evening .city-time {
-  color: #f5f3ff;
-}
-
-/* DRAG INDICATOR */
-.city.dragging {
-  opacity: 0.5;
-  transform: scale(0.95);
-}
-
-/* RESPONSIVE */
-@media (max-width: 768px) {
-  .title-section h1 {
-    font-size: 24px;
-  }
-  
-  .controls {
-    width: 100%;
-  }
-  
-  .searchBox {
-    min-width: 100%;
-    max-width: 100%;
-  }
-  
-  .time-controls {
-    width: 100%;
-    justify-content: space-between;
-  }
-  
-  .city {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 16px;
-  }
-  
-  .city-actions {
-    width: 100%;
-    justify-content: flex-end;
-  }
-}
-
-/* SCROLLBAR */
-::-webkit-scrollbar {
-  width: 10px;
-}
-
-::-webkit-scrollbar-track {
-  background: var(--panel);
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--border);
-  border-radius: 5px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #64748b;
-}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>World Time</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+    * { box-sizing: border-box; }
+
+    :root {
+      --primary: #10B981;
+      --primary-light: #34D399;
+      --success: #10B981;
+      --warning: #F59E0B;
+      --danger: #EF4444;
+      --bg-primary: #0F172A;
+      --bg-secondary: #1E293B;
+      --bg-tertiary: #334155;
+      --text-primary: #F8FAFC;
+      --text-secondary: #CBD5E1;
+      --text-muted: #64748B;
+      --border: #334155;
+      --border-hover: #475569;
+    }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes slideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: linear-gradient(135deg, var(--bg-primary) 0%, #1a1a2e 100%);
+      color: var(--text-primary);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    .container { max-width: 900px; margin: 0 auto; animation: fadeIn 0.8s ease-out; }
+
+    h1 {
+      text-align: center;
+      font-size: clamp(2rem, 4vw, 3rem);
+      font-weight: 700;
+      margin: 0 0 40px 0;
+      background: linear-gradient(135deg, var(--primary), var(--primary-light));
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .section {
+      background: rgba(30, 41, 59, 0.8);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 24px;
+      border: 1px solid var(--border);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 4px 24px rgba(0,0,0,0.2);
+      transition: all 0.3s ease;
+      overflow: visible;
+    }
+    .section:hover { border-color: var(--border-hover); box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
+    .section h2 { font-size: 1.25rem; font-weight: 600; margin: 0 0 20px 0; color: var(--text-primary); display: flex; align-items: center; gap: 12px; }
+
+    /* Search */
+    .search-row { display: flex; gap: 12px; align-items: stretch; flex-wrap: wrap; }
+    .search-wrapper { position: relative; flex: 1; min-width: 220px; overflow: visible; }
+    .search-wrapper input { width: 100%; padding-left: 40px; }
+    .search-icon {
+      position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+      font-size: 16px; pointer-events: none; z-index: 1;
+    }
+    #dropdown {
+      position: absolute;
+      background: var(--bg-secondary); border: 1px solid var(--border);
+      border-radius: 12px; max-height: 260px; overflow-y: auto;
+      box-shadow: 0 16px 48px rgba(0,0,0,0.7); z-index: 9999;
+      display: none; top: 0; left: 0;
+    }
+    #dropdown.open { display: block; }
+    .drop-item {
+      padding: 11px 16px; cursor: pointer; border-bottom: 1px solid rgba(71,85,105,0.3);
+      font-size: 0.875rem; transition: background 0.15s;
+    }
+    .drop-item:last-child { border-bottom: none; }
+    .drop-item:hover { background: var(--bg-tertiary); }
+    .drop-item .tz-label { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
+    .drop-loading { padding: 14px 16px; color: var(--text-muted); font-size: 0.875rem; font-style: italic; }
+    .drop-section-label {
+      padding: 8px 16px 4px; font-size: 0.7rem; text-transform: uppercase;
+      letter-spacing: 1px; color: var(--text-muted); font-weight: 600;
+      background: rgba(15,23,42,0.5);
+    }
+
+    /* Controls - time mode selector */
+    .controls-row {
+      display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    }
+    .time-mode-btn {
+      display: flex; align-items: center; gap: 8px;
+      padding: 9px 16px !important;
+      border-radius: 8px !important;
+      font-size: 0.875rem !important;
+      font-weight: 500 !important;
+      cursor: pointer;
+      background: var(--bg-tertiary) !important;
+      color: var(--text-muted) !important;
+      border: 2px solid transparent !important;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+    .time-mode-btn:hover { color: var(--text-primary) !important; transform: none !important; }
+    .time-mode-btn.selected {
+      background: rgba(16,185,129,0.15) !important;
+      color: var(--primary) !important;
+      border-color: var(--primary) !important;
+    }
+    .time-mode-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: currentColor; flex-shrink: 0;
+    }
+    input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--primary); cursor: pointer; }
+
+    /* Inputs / buttons global */
+    input, select, button {
+      padding: 10px 14px; border: 1px solid var(--border);
+      background: var(--bg-secondary); color: var(--text-primary);
+      border-radius: 8px; font-family: inherit; font-size: 0.875rem; transition: all 0.2s ease;
+    }
+    input:focus, select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(16,185,129,0.1); }
+    input::placeholder { color: var(--text-muted); }
+    button { background: var(--primary); color: #0f172a; border: none; cursor: pointer; font-weight: 600; white-space: nowrap; }
+    button:hover { background: var(--primary-light); transform: translateY(-1px); }
+    button:active { transform: translateY(0); }
+    .btn-secondary { background: var(--bg-tertiary) !important; color: var(--text-secondary) !important; border: 1px solid var(--border); }
+    .btn-secondary:hover { background: var(--border-hover) !important; color: var(--text-primary) !important; }
+    .btn-icon { padding: 8px 10px !important; font-size: 1rem; background: var(--bg-tertiary) !important; color: var(--text-secondary) !important; border: 1px solid var(--border); }
+    .btn-icon:hover { background: var(--border-hover) !important; }
+    .btn-icon.active { background: rgba(16,185,129,0.2) !important; color: var(--primary) !important; border-color: var(--primary); }
+    input[type="time"] { min-width: 110px; }
+
+    /* Connection status */
+    .connection-status {
+      padding: 4px 12px; border-radius: 6px; font-size: 0.75rem;
+      font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .connection-status.online { background: rgba(16,185,129,0.2); color: var(--success); border: 1px solid var(--success); }
+    .connection-status.offline { background: rgba(245,158,11,0.2); color: var(--warning); border: 1px solid var(--warning); }
+
+    /* City cards */
+    #cities-container { display: flex; flex-direction: column; gap: 12px; }
+
+    .city-card {
+      background: rgba(51,65,85,0.5); border: 2px solid var(--border);
+      border-radius: 14px; padding: 18px 20px;
+      display: flex; justify-content: space-between; align-items: center;
+      cursor: grab; transition: all 0.25s ease;
+      animation: slideIn 0.3s ease-out;
+      position: relative; overflow: hidden;
+    }
+    .city-card::before {
+      content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+      width: 4px; background: var(--period-color, var(--border));
+      transition: background 0.5s ease;
+    }
+    .city-card:hover { transform: translateY(-3px); border-color: var(--border-hover); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+    .city-card:active { cursor: grabbing; }
+    .city-card.is-base {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 1px var(--primary), 0 8px 24px rgba(16,185,129,0.15);
+    }
+    .city-card.dragging { opacity: 0.5; transform: scale(0.98); }
+    .city-card.drag-over { border-color: var(--primary-light); }
+
+    .city-left { flex: 1; min-width: 0; }
+    .city-name { font-size: 1rem; font-weight: 600; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .city-tz { font-size: 0.75rem; color: var(--text-muted); }
+
+    .city-center { text-align: center; flex-shrink: 0; padding: 0 20px; }
+    .city-time {
+      font-size: 2.2rem; font-weight: 700;
+      font-variant-numeric: tabular-nums; letter-spacing: 1px;
+      line-height: 1;
+    }
+    .city-date { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; }
+    .city-period {
+      font-size: 0.7rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 1px; margin-top: 4px;
+      color: var(--period-color, var(--text-muted));
+    }
+    .city-diff {
+      font-size: 0.8rem; color: var(--text-secondary);
+      margin-top: 4px;
+    }
+
+    .city-right { display: flex; gap: 6px; flex-shrink: 0; }
+
+    /* Period colors */
+    .period-night { --period-color: #6366F1; }
+    .period-morning { --period-color: #F59E0B; }
+    .period-afternoon { --period-color: #10B981; }
+    .period-evening { --period-color: #F97316; }
+
+    .city-time.period-night { color: #a5b4fc; }
+    .city-time.period-morning { color: #FCD34D; }
+    .city-time.period-afternoon { color: #34D399; }
+    .city-time.period-evening { color: #FDBA74; }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center; padding: 48px 20px; color: var(--text-muted);
+    }
+    .empty-state .emoji { font-size: 3rem; margin-bottom: 12px; }
+    .empty-state p { font-size: 1rem; margin: 4px 0; }
+
+    /* Status message */
+    .status-msg {
+      padding: 10px 14px; border-radius: 8px; font-size: 0.875rem;
+      font-weight: 500; text-align: center; margin-top: 12px;
+    }
+    .status-msg.error { background: rgba(239,68,68,0.1); border: 1px solid var(--danger); color: var(--danger); }
+    .status-msg.warn { background: rgba(245,158,11,0.1); border: 1px solid var(--warning); color: var(--warning); }
+    .status-msg.ok { background: rgba(16,185,129,0.1); border: 1px solid var(--success); color: var(--success); }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      body { padding: 10px; }
+      h1 { margin-bottom: 24px; }
+      .section { padding: 16px 14px; }
+      .city-card { flex-wrap: wrap; gap: 12px; }
+      .city-center { padding: 0; }
+      .city-time { font-size: 1.8rem; }
+      .search-row { flex-direction: column; }
+    }
+  </style>
 </head>
 <body>
-<header>
-  <div class="header-content">
-    <div class="title-section">
-      <h1>🌍 World Time Sync</h1>
-      <div id="status">Checking...</div>
-    </div>
-    
-    <div class="controls">
-      <div class="searchBox">
-        <input id="search" placeholder="Buscar ciudad (ej: Buenos Aires, Tokyo...)">
-        <div id="results"></div>
+<div class="container">
+  <h1>🌍 World Time</h1>
+
+  <!-- Search + Controls -->
+  <div class="section">
+    <h2>
+      🔍 Agregar ciudad
+      <span id="conn-status" class="connection-status" style="margin-left: auto; font-size: 0.7rem;"></span>
+    </h2>
+
+    <div class="search-row" style="margin-bottom: 16px;">
+      <div class="search-wrapper">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="search" placeholder="Buscar ciudad o zona horaria..." autocomplete="off">
       </div>
-      
-      <div class="time-controls">
-        <input type="time" id="timeInput" title="Seleccionar hora personalizada">
-        <label class="toggle-label">
-          <input type="checkbox" id="nowToggle" checked>
-          <span>Hora actual</span>
-        </label>
+      <button class="btn-secondary" onclick="addCurrentLocation()" title="Agregar mi ubicación">📍 Mi zona</button>
+    </div>
+
+    <div class="controls-row">
+      <button class="time-mode-btn selected" id="btn-now" onclick="setModeNow()">
+        <span class="time-mode-dot"></span> Hora actual
+      </button>
+      <button class="time-mode-btn" id="btn-custom" onclick="setModeCustom()">
+        <span class="time-mode-dot"></span> Hora específica
+      </button>
+      <input type="time" id="custom-time" value="12:00" disabled oninput="onCustomTime(this)"
+             style="opacity:0.4; pointer-events:none; transition: opacity 0.2s;">
+      <span id="status-msg" style="font-size: 0.8rem; color: var(--text-muted); margin-left: auto;"></span>
+    </div>
+  </div>
+
+  <!-- Cities -->
+  <div class="section">
+    <h2>🕐 Zonas horarias</h2>
+    <div id="cities-container">
+      <div class="empty-state">
+        <div class="emoji">🌐</div>
+        <p><strong>No hay ciudades añadidas</strong></p>
+        <p>Buscá una ciudad arriba o agregá tu zona horaria</p>
       </div>
     </div>
   </div>
-</header>
+</div>
 
-<div id="cities"></div>
-
+<div id="dropdown"></div>
 <script>
-const KEY = "wts_pro_v2";
-let state = {
-  cities: [],
-  base: 0,
-  custom: "12:00",
-  useNow: true
-};
+// ─────────────────────────────────────────────
+// DATOS: lista curada offline de zonas horarias
+// ─────────────────────────────────────────────
+const TZ_LIST = [
+  // América
+  { name: "Buenos Aires", tz: "America/Argentina/Buenos_Aires", country: "AR" },
+  { name: "Montevideo", tz: "America/Montevideo", country: "UY" },
+  { name: "Santiago", tz: "America/Santiago", country: "CL" },
+  { name: "Lima", tz: "America/Lima", country: "PE" },
+  { name: "Bogotá", tz: "America/Bogota", country: "CO" },
+  { name: "Caracas", tz: "America/Caracas", country: "VE" },
+  { name: "La Paz", tz: "America/La_Paz", country: "BO" },
+  { name: "Asunción", tz: "America/Asuncion", country: "PY" },
+  { name: "São Paulo", tz: "America/Sao_Paulo", country: "BR" },
+  { name: "Rio de Janeiro", tz: "America/Sao_Paulo", country: "BR" },
+  { name: "Brasília", tz: "America/Sao_Paulo", country: "BR" },
+  { name: "Manaus", tz: "America/Manaus", country: "BR" },
+  { name: "Ciudad de México", tz: "America/Mexico_City", country: "MX" },
+  { name: "Guadalajara", tz: "America/Mexico_City", country: "MX" },
+  { name: "Monterrey", tz: "America/Monterrey", country: "MX" },
+  { name: "Tijuana", tz: "America/Tijuana", country: "MX" },
+  { name: "Nueva York", tz: "America/New_York", country: "US" },
+  { name: "Miami", tz: "America/New_York", country: "US" },
+  { name: "Boston", tz: "America/New_York", country: "US" },
+  { name: "Washington DC", tz: "America/New_York", country: "US" },
+  { name: "Chicago", tz: "America/Chicago", country: "US" },
+  { name: "Houston", tz: "America/Chicago", country: "US" },
+  { name: "Dallas", tz: "America/Chicago", country: "US" },
+  { name: "Denver", tz: "America/Denver", country: "US" },
+  { name: "Phoenix", tz: "America/Phoenix", country: "US" },
+  { name: "Los Ángeles", tz: "America/Los_Angeles", country: "US" },
+  { name: "San Francisco", tz: "America/Los_Angeles", country: "US" },
+  { name: "Las Vegas", tz: "America/Los_Angeles", country: "US" },
+  { name: "Seattle", tz: "America/Los_Angeles", country: "US" },
+  { name: "Toronto", tz: "America/Toronto", country: "CA" },
+  { name: "Montreal", tz: "America/Toronto", country: "CA" },
+  { name: "Vancouver", tz: "America/Vancouver", country: "CA" },
+  { name: "Anchorage", tz: "America/Anchorage", country: "US" },
+  { name: "Honolulu", tz: "Pacific/Honolulu", country: "US" },
+  { name: "Panama City", tz: "America/Panama", country: "PA" },
+  { name: "San José", tz: "America/Costa_Rica", country: "CR" },
+  { name: "Guatemala City", tz: "America/Guatemala", country: "GT" },
+  { name: "Quito", tz: "America/Guayaquil", country: "EC" },
+  // Europa
+  { name: "Madrid", tz: "Europe/Madrid", country: "ES" },
+  { name: "Barcelona", tz: "Europe/Madrid", country: "ES" },
+  { name: "Lisboa", tz: "Europe/Lisbon", country: "PT" },
+  { name: "Londres", tz: "Europe/London", country: "GB" },
+  { name: "Dublín", tz: "Europe/Dublin", country: "IE" },
+  { name: "París", tz: "Europe/Paris", country: "FR" },
+  { name: "Lyon", tz: "Europe/Paris", country: "FR" },
+  { name: "Berlín", tz: "Europe/Berlin", country: "DE" },
+  { name: "Múnich", tz: "Europe/Berlin", country: "DE" },
+  { name: "Frankfurt", tz: "Europe/Berlin", country: "DE" },
+  { name: "Ámsterdam", tz: "Europe/Amsterdam", country: "NL" },
+  { name: "Bruselas", tz: "Europe/Brussels", country: "BE" },
+  { name: "Zurich", tz: "Europe/Zurich", country: "CH" },
+  { name: "Ginebra", tz: "Europe/Zurich", country: "CH" },
+  { name: "Viena", tz: "Europe/Vienna", country: "AT" },
+  { name: "Roma", tz: "Europe/Rome", country: "IT" },
+  { name: "Milán", tz: "Europe/Rome", country: "IT" },
+  { name: "Varsovia", tz: "Europe/Warsaw", country: "PL" },
+  { name: "Budapest", tz: "Europe/Budapest", country: "HU" },
+  { name: "Praga", tz: "Europe/Prague", country: "CZ" },
+  { name: "Bucarest", tz: "Europe/Bucharest", country: "RO" },
+  { name: "Atenas", tz: "Europe/Athens", country: "GR" },
+  { name: "Helsinki", tz: "Europe/Helsinki", country: "FI" },
+  { name: "Estocolmo", tz: "Europe/Stockholm", country: "SE" },
+  { name: "Oslo", tz: "Europe/Oslo", country: "NO" },
+  { name: "Copenhague", tz: "Europe/Copenhagen", country: "DK" },
+  { name: "Moscú", tz: "Europe/Moscow", country: "RU" },
+  { name: "Estambul", tz: "Europe/Istanbul", country: "TR" },
+  { name: "Kiev", tz: "Europe/Kiev", country: "UA" },
+  // Asia
+  { name: "Dubái", tz: "Asia/Dubai", country: "AE" },
+  { name: "Abu Dhabi", tz: "Asia/Dubai", country: "AE" },
+  { name: "Riad", tz: "Asia/Riyadh", country: "SA" },
+  { name: "Tel Aviv", tz: "Asia/Jerusalem", country: "IL" },
+  { name: "Bagdad", tz: "Asia/Baghdad", country: "IQ" },
+  { name: "Teherán", tz: "Asia/Tehran", country: "IR" },
+  { name: "Karachi", tz: "Asia/Karachi", country: "PK" },
+  { name: "Lahore", tz: "Asia/Karachi", country: "PK" },
+  { name: "Mumbai", tz: "Asia/Kolkata", country: "IN" },
+  { name: "Delhi", tz: "Asia/Kolkata", country: "IN" },
+  { name: "Calcuta", tz: "Asia/Kolkata", country: "IN" },
+  { name: "Bangalor", tz: "Asia/Kolkata", country: "IN" },
+  { name: "Colombo", tz: "Asia/Colombo", country: "LK" },
+  { name: "Katmandú", tz: "Asia/Kathmandu", country: "NP" },
+  { name: "Daca", tz: "Asia/Dhaka", country: "BD" },
+  { name: "Rangún", tz: "Asia/Rangoon", country: "MM" },
+  { name: "Bangkok", tz: "Asia/Bangkok", country: "TH" },
+  { name: "Hanói", tz: "Asia/Ho_Chi_Minh", country: "VN" },
+  { name: "Ho Chi Minh", tz: "Asia/Ho_Chi_Minh", country: "VN" },
+  { name: "Yakarta", tz: "Asia/Jakarta", country: "ID" },
+  { name: "Kuala Lumpur", tz: "Asia/Kuala_Lumpur", country: "MY" },
+  { name: "Singapur", tz: "Asia/Singapore", country: "SG" },
+  { name: "Manila", tz: "Asia/Manila", country: "PH" },
+  { name: "Hong Kong", tz: "Asia/Hong_Kong", country: "HK" },
+  { name: "Shanghái", tz: "Asia/Shanghai", country: "CN" },
+  { name: "Pekín", tz: "Asia/Shanghai", country: "CN" },
+  { name: "Taipei", tz: "Asia/Taipei", country: "TW" },
+  { name: "Seúl", tz: "Asia/Seoul", country: "KR" },
+  { name: "Tokio", tz: "Asia/Tokyo", country: "JP" },
+  { name: "Osaka", tz: "Asia/Tokyo", country: "JP" },
+  // Oceanía & África
+  { name: "Sídney", tz: "Australia/Sydney", country: "AU" },
+  { name: "Melbourne", tz: "Australia/Melbourne", country: "AU" },
+  { name: "Brisbane", tz: "Australia/Brisbane", country: "AU" },
+  { name: "Perth", tz: "Australia/Perth", country: "AU" },
+  { name: "Auckland", tz: "Pacific/Auckland", country: "NZ" },
+  { name: "El Cairo", tz: "Africa/Cairo", country: "EG" },
+  { name: "Lagos", tz: "Africa/Lagos", country: "NG" },
+  { name: "Nairobi", tz: "Africa/Nairobi", country: "KE" },
+  { name: "Johannesburgo", tz: "Africa/Johannesburg", country: "ZA" },
+  { name: "Casablanca", tz: "Africa/Casablanca", country: "MA" },
+  { name: "Accra", tz: "Africa/Accra", country: "GH" },
+  // UTC
+  { name: "UTC", tz: "UTC", country: "🌐" },
+];
 
-/* ========= STORAGE ========= */
-function save() { localStorage.setItem(KEY, JSON.stringify(state)) }
-function load() { 
-  const s = localStorage.getItem(KEY);
-  if (s) state = JSON.parse(s);
+// ─────────────────────────────────────────────
+// ESTADO
+// ─────────────────────────────────────────────
+const STORAGE_KEY = "worldtime_v3";
+let state = { cities: [], base: 0, useNow: true, custom: "12:00" };
+
+function saveState() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch(_) {}
+}
+function loadState() {
+  try {
+    const s = localStorage.getItem(STORAGE_KEY);
+    if (s) state = { ...state, ...JSON.parse(s) };
+  } catch(_) {}
 }
 
-/* ========= CONNECTION ========= */
-const statusEl = document.getElementById("status");
-function updateConnection() {
-  const online = navigator.onLine;
-  statusEl.textContent = online ? "ONLINE" : "OFFLINE";
-  statusEl.className = online ? "online" : "offline";
+// ─────────────────────────────────────────────
+// CONEXIÓN
+// ─────────────────────────────────────────────
+const connEl = document.getElementById("conn-status");
+function updateConn() {
+  const on = navigator.onLine;
+  connEl.textContent = on ? "● ONLINE" : "● OFFLINE";
+  connEl.className = "connection-status " + (on ? "online" : "offline");
 }
-window.addEventListener("online", updateConnection);
-window.addEventListener("offline", updateConnection);
-updateConnection();
+window.addEventListener("online", updateConn);
+window.addEventListener("offline", updateConn);
+updateConn();
 
-/* ========= TIME ========= */
-function period(h) {
-  if (h < 6) return "night";
-  if (h < 12) return "morning";
-  if (h < 18) return "afternoon";
-  if (h < 22) return "evening";
-  return "night";
-}
-
-function periodName(h) {
-  if (h < 6) return "Madrugada";
-  if (h < 12) return "Mañana";
-  if (h < 18) return "Tarde";
-  if (h < 22) return "Noche";
-  return "Madrugada";
-}
-
+// ─────────────────────────────────────────────
+// TIEMPO
+// ─────────────────────────────────────────────
 function baseDate() {
   if (state.useNow) return new Date();
-  const d = new Date();
-  const [t, m] = state.custom.split(":");
-  d.setHours(t, m, 0, 0);
-  return d;
+  // Hora custom: interpretamos la hora elegida como si fuera la hora de la ciudad BASE.
+  // Estrategia: calculamos el offset UTC actual del timezone base,
+  // luego construimos un timestamp UTC que corresponde a "hh:mm en baseTZ hoy".
+  const baseTZ = state.cities[state.base]?.tz || Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const [hh, mm] = state.custom.split(":").map(Number);
+
+  // Fecha de hoy en el timezone base (año/mes/día locales en esa zona)
+  const now = new Date();
+  const fmt = new Intl.DateTimeFormat("en-CA", {
+    timeZone: baseTZ,
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false
+  });
+  const parts = Object.fromEntries(fmt.formatToParts(now).map(p => [p.type, p.value]));
+  // Reconstruimos un Date que represente medianoche local en baseTZ
+  // usando el offset: diferencia entre UTC y la hora local en esa zona
+  const localMidnightStr = `${parts.year}-${parts.month}-${parts.day}T00:00:00`;
+  // Offset = UTC_hour - local_hour (en horas enteras + fracción)
+  // Forma robusta: tomamos un instante conocido y calculamos la diferencia
+  const localAsUTC = new Date(`${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}Z`);
+  const offsetMs = localAsUTC.getTime() - now.getTime();
+  // Medianoche UTC ajustada al timezone base
+  const midnightUTC = new Date(new Date(localMidnightStr + "Z").getTime() - offsetMs);
+  // Sumamos las horas/minutos elegidos
+  return new Date(midnightUTC.getTime() + hh * 3600000 + mm * 60000);
 }
 
-function timeInTZ(date, tz) {
+function getPeriod(h) {
+  if (h < 6) return { label: "Madrugada", color: "period-night" };
+  if (h < 12) return { label: "Mañana",   color: "period-morning" };
+  if (h < 18) return { label: "Tarde",     color: "period-afternoon" };
+  if (h < 22) return { label: "Noche",     color: "period-evening" };
+  return       { label: "Madrugada",       color: "period-night" };
+}
+
+function getTimeInTZ(date, tz) {
   return new Intl.DateTimeFormat("es-AR", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+    hour12: false, timeZone: tz
+  }).format(date);
+}
+
+function getDateInTZ(date, tz) {
+  return new Intl.DateTimeFormat("es-AR", {
+    weekday: "short", day: "numeric", month: "short",
     timeZone: tz
   }).format(date);
 }
 
-/* ========= RENDER ========= */
-function render() {
-  const c = document.getElementById("cities");
-  c.innerHTML = "";
-  
+function getDiffLabel(date, baseTZ, targetTZ) {
+  if (!baseTZ || baseTZ === targetTZ) return "";
+  try {
+    // Calcular offset en minutos entre los dos timezones
+    const toMs = tz => {
+      const s = new Date(date.toLocaleString("en", { timeZone: tz }));
+      return s.getTime();
+    };
+    const diffMs = toMs(targetTZ) - toMs(baseTZ);
+    const diffMin = Math.round(diffMs / 60000);
+    if (diffMin === 0) return "Misma hora";
+    const h = Math.floor(Math.abs(diffMin) / 60);
+    const m = Math.abs(diffMin) % 60;
+    const sign = diffMin > 0 ? "+" : "−";
+    return m === 0 ? `${sign}${h}h` : `${sign}${h}h ${m}m`;
+  } catch(_) { return ""; }
+}
+
+// ─────────────────────────────────────────────
+// RENDER — solo actualiza textos, no recrea DOM
+// ─────────────────────────────────────────────
+let cardsBuilt = false;
+
+function buildCards() {
+  const container = document.getElementById("cities-container");
+  container.innerHTML = "";
+  cardsBuilt = false;
+
   if (state.cities.length === 0) {
-    c.innerHTML = `
+    container.innerHTML = `
       <div class="empty-state">
-        <h2>🌐 No hay ciudades añadidas</h2>
-        <p>Busca y añade ciudades para ver sus zonas horarias</p>
-      </div>
-    `;
+        <div class="emoji">🌐</div>
+        <p><strong>No hay ciudades añadidas</strong></p>
+        <p>Buscá una ciudad arriba o agregá tu zona horaria</p>
+      </div>`;
     return;
   }
-  
-  const base = baseDate();
+
   state.cities.forEach((city, i) => {
-    const t = timeInTZ(base, city.tz);
-    const h = parseInt(t.split(":")[0]);
-    const p = period(h);
-    const pName = periodName(h);
-    
-    const d = document.createElement("div");
-    d.className = "city " + p + (i === state.base ? " base" : "");
-    d.draggable = true;
-    d.innerHTML = `
-      <div class="city-info">
+    const isBase = i === state.base;
+    const card = document.createElement("div");
+    card.className = "city-card" + (isBase ? " is-base" : "");
+    card.id = `card-${i}`;
+    card.draggable = true;
+
+    card.innerHTML = `
+      <div class="city-left">
         <div class="city-name">${city.name}</div>
-        <div class="city-time">${t}</div>
-        <div class="city-period">${pName}</div>
+        <div class="city-tz">${city.tz}</div>
       </div>
-      <div class="city-actions">
-        <button class="${i === state.base ? 'base-btn' : ''}" onclick="setBase(${i})" title="${i === state.base ? 'Ciudad base actual' : 'Establecer como base'}">
-          ${i === state.base ? '⭐' : '☆'}
+      <div class="city-center">
+        <div class="city-time" id="time-${i}"></div>
+        <div class="city-date" id="date-${i}"></div>
+        <div class="city-period" id="period-${i}"></div>
+        <div class="city-diff" id="diff-${i}"></div>
+      </div>
+      <div class="city-right">
+        <button class="btn-icon${isBase ? ' active' : ''}" id="base-btn-${i}" onclick="setBase(${i})" title="${isBase ? 'Ciudad base' : 'Establecer como base'}">
+          ${isBase ? '⭐' : '☆'}
         </button>
-        <button class="remove-btn" onclick="removeCity(${i})" title="Eliminar ciudad">❌</button>
-      </div>
-    `;
-    
-    d.ondragstart = e => {
-      e.dataTransfer.setData("i", i);
-      d.classList.add("dragging");
+        <button class="btn-icon" onclick="removeCity(${i})" title="Eliminar">🗑</button>
+      </div>`;
+
+    card.ondragstart = e => {
+      e.dataTransfer.setData("idx", i);
+      card.classList.add("dragging");
     };
-    d.ondragend = e => {
-      d.classList.remove("dragging");
-    };
-    d.ondragover = e => e.preventDefault();
-    d.ondrop = e => {
+    card.ondragend = () => card.classList.remove("dragging");
+    card.ondragover = e => { e.preventDefault(); card.classList.add("drag-over"); };
+    card.ondragleave = () => card.classList.remove("drag-over");
+    card.ondrop = e => {
       e.preventDefault();
-      const from = parseInt(e.dataTransfer.getData("i"));
-      if (from !== i) {
-        const item = state.cities.splice(from, 1)[0];
-        state.cities.splice(i, 0, item);
-        if (state.base === from) {
-          state.base = i;
-        } else if (from < state.base && i >= state.base) {
-          state.base--;
-        } else if (from > state.base && i <= state.base) {
-          state.base++;
-        }
-        save();
-        render();
-      }
+      card.classList.remove("drag-over");
+      const from = parseInt(e.dataTransfer.getData("idx"));
+      const to = i;
+      if (from === to) return;
+      const item = state.cities.splice(from, 1)[0];
+      state.cities.splice(to, 0, item);
+      if (state.base === from) state.base = to;
+      else if (from < state.base && to >= state.base) state.base--;
+      else if (from > state.base && to <= state.base) state.base++;
+      saveState(); buildCards(); updateClocks();
     };
-    
-    c.appendChild(d);
+
+    container.appendChild(card);
+  });
+
+  cardsBuilt = true;
+}
+
+function updateClocks() {
+  if (!cardsBuilt || state.cities.length === 0) return;
+  const now = baseDate();
+  const baseTZ = state.cities[state.base]?.tz;
+
+  state.cities.forEach((city, i) => {
+    const timeEl   = document.getElementById(`time-${i}`);
+    const dateEl   = document.getElementById(`date-${i}`);
+    const periodEl = document.getElementById(`period-${i}`);
+    const diffEl   = document.getElementById(`diff-${i}`);
+    const cardEl   = document.getElementById(`card-${i}`);
+    if (!timeEl) return;
+
+    const timeStr = getTimeInTZ(now, city.tz);
+    const h = parseInt(timeStr.split(":")[0]);
+    const period = getPeriod(h);
+
+    // Solo actualiza texto si cambió (evita repaint innecesario)
+    if (timeEl.textContent !== timeStr) timeEl.textContent = timeStr;
+
+    const dateStr = getDateInTZ(now, city.tz);
+    if (dateEl.textContent !== dateStr) dateEl.textContent = dateStr;
+
+    if (periodEl.textContent !== period.label) periodEl.textContent = period.label;
+
+    const diffStr = i === state.base ? "⭐ Base" : getDiffLabel(now, baseTZ, city.tz);
+    if (diffEl.textContent !== diffStr) diffEl.textContent = diffStr;
+
+    // Actualizar clase de color del período sin tocar todo el card
+    const colorClasses = ["period-night","period-morning","period-afternoon","period-evening"];
+    colorClasses.forEach(c => { timeEl.classList.remove(c); cardEl.classList.remove(c); });
+    timeEl.classList.add(period.color);
+    cardEl.classList.add(period.color);
   });
 }
 
-/* ========= ACTIONS ========= */
-function setBase(i) {
-  state.base = i;
-  save();
-  render();
-}
+// ─────────────────────────────────────────────
+// ACCIONES
+// ─────────────────────────────────────────────
+function setBase(i) { state.base = i; saveState(); buildCards(); updateClocks(); }
 
 function removeCity(i) {
   state.cities.splice(i, 1);
-  if (state.base >= state.cities.length) state.base = 0;
-  save();
-  render();
+  if (state.base >= state.cities.length) state.base = Math.max(0, state.cities.length - 1);
+  saveState(); buildCards(); updateClocks();
 }
 
 function addCity(name, tz) {
-  if (!state.cities.some(c => c.tz === tz)) {
-    state.cities.push({ name, tz });
-    save();
-    render();
+  if (state.cities.some(c => c.tz === tz && c.name === name)) {
+    showStatus("La ciudad ya está en la lista", "warn"); return;
   }
+  state.cities.push({ name, tz });
+  saveState(); buildCards(); updateClocks();
 }
 
-/* ========= SEARCH ========= */
-const results = document.getElementById("results");
+// ─────────────────────────────────────────────
+// BÚSQUEDA (offline first, online complementa)
+// ─────────────────────────────────────────────
 const searchInput = document.getElementById("search");
-let debounce;
+const dropdown = document.getElementById("dropdown");
+let debounceTimer;
+let lastQuery = "";
 
-searchInput.oninput = e => {
-  clearTimeout(debounce);
-  debounce = setTimeout(() => search(e.target.value), 300);
-};
-
-// Close results when clicking outside
-document.addEventListener('click', (e) => {
-  if (!e.target.closest('.searchBox')) {
-    results.innerHTML = "";
-  }
+searchInput.addEventListener("input", e => {
+  clearTimeout(debounceTimer);
+  const q = e.target.value.trim();
+  if (q.length < 2) { closeDropdown(); return; }
+  debounceTimer = setTimeout(() => doSearch(q), 250);
 });
 
-async function search(q) {
-  if (!navigator.onLine || q.length < 2) {
-    results.innerHTML = "";
+// Posicionar dropdown: position:absolute relativo al body, usando coordenadas de página
+function positionDropdown() {
+  const rect = searchInput.getBoundingClientRect();
+  const scrollY = window.scrollY || document.documentElement.scrollTop;
+  const scrollX = window.scrollX || document.documentElement.scrollLeft;
+  dropdown.style.left  = (rect.left + scrollX) + "px";
+  dropdown.style.top   = (rect.bottom + scrollY + 6) + "px";
+  dropdown.style.width = rect.width + "px";
+}
+window.addEventListener("resize", () => { if (dropdown.classList.contains("open")) positionDropdown(); });
+window.addEventListener("scroll", () => { if (dropdown.classList.contains("open")) positionDropdown(); }, true);
+
+document.addEventListener("click", e => {
+  const inInput = e.target.closest(".search-wrapper");
+  const inDropdown = e.target.closest("#dropdown");
+  if (!inInput && !inDropdown) closeDropdown();
+});
+
+
+searchInput.addEventListener("keydown", e => {
+  if (e.key === "Escape") closeDropdown();
+});
+
+function closeDropdown() { dropdown.innerHTML = ""; dropdown.classList.remove("open"); }
+
+function doSearch(q) {
+  lastQuery = q;
+  const lower = q.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const offline = TZ_LIST.filter(item => {
+    const n = item.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const t = item.tz.toLowerCase();
+    return n.includes(lower) || t.includes(lower);
+  }).slice(0, 8);
+
+  showDropdownResults(offline, q, false);
+
+  // Busca online SOLO si hay pocos resultados offline
+  if (offline.length < 3 && navigator.onLine) {
+    searchOnline(q);
+  }
+}
+
+function showDropdownResults(results, q, isOnlineExtra) {
+  // Si cambió la query mientras esperábamos, descartamos
+  if (q !== lastQuery) return;
+
+  if (isOnlineExtra) {
+    // Agregar sección online al dropdown existente sin resetear
+    if (results.length === 0) return;
+    const label = document.createElement("div");
+    label.className = "drop-section-label";
+    label.textContent = "Resultados online";
+    dropdown.appendChild(label);
+    results.forEach(item => appendDropItem(item));
     return;
   }
-  
+
+  dropdown.innerHTML = "";
+
+  if (results.length === 0) {
+    const msg = document.createElement("div");
+    msg.className = "drop-loading";
+    msg.textContent = navigator.onLine ? `Buscando "${q}" online...` : `Sin resultados para "${q}"`;
+    dropdown.appendChild(msg);
+  } else {
+    results.forEach(item => appendDropItem(item));
+    if (navigator.onLine && results.length < 3) {
+      const msg = document.createElement("div");
+      msg.className = "drop-loading";
+      msg.textContent = "Buscando más resultados online...";
+      dropdown.appendChild(msg);
+    }
+  }
+
+  positionDropdown();
+  dropdown.classList.add("open");
+}
+
+function appendDropItem(item) {
+  const div = document.createElement("div");
+  div.className = "drop-item";
+  div.innerHTML = `
+    <div>${item.name} <span style="color:var(--text-muted);font-size:0.8rem;">${item.country || ''}</span></div>
+    <div class="tz-label">${item.tz}</div>`;
+  // mousedown con preventDefault evita que el input pierda el foco
+  // antes de que se procese el click, previniendo el cierre prematuro
+  div.addEventListener("mousedown", e => e.preventDefault());
+  div.addEventListener("click", () => { addCity(item.name, item.tz); closeDropdown(); searchInput.value = ""; });
+  dropdown.appendChild(div);
+}
+
+async function searchOnline(q) {
   try {
-    // Using geocode.maps.co which has better CORS support
     const r = await fetch(
-      `https://geocode.maps.co/search?q=${encodeURIComponent(q)}`
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=6&featuretype=city`,
+      { headers: { "Accept-Language": "es" } }
     );
+    if (!r.ok) return;
     const data = await r.json();
-    results.innerHTML = "";
-    
-    if (data.length === 0) {
-      results.innerHTML = '<div class="result">No se encontraron resultados</div>';
-      return;
+    if (!data.length || q !== lastQuery) return;
+
+    const extras = [];
+    for (const item of data.slice(0, 5)) {
+      const tz = guessTimezoneFromCoords(parseFloat(item.lat), parseFloat(item.lon));
+      const cleanName = (item.display_name || "").split(",")[0].trim();
+      const country = item.display_name.split(",").slice(-1)[0].trim();
+      // Evitar duplicados con lista offline
+      const lower = cleanName.toLowerCase();
+      if (!TZ_LIST.some(t => t.name.toLowerCase() === lower && t.tz === tz)) {
+        extras.push({ name: cleanName, tz, country });
+      }
     }
-    
-    for (const item of data) {
-      const d = document.createElement("div");
-      d.className = "result";
-      d.textContent = item.display_name;
-      d.onclick = async () => {
-        try {
-          // Get timezone from coordinates
-          const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-          // Use a more reliable timezone API
-          const tzr = await fetch(
-            `https://api.wheretheiss.at/v1/coordinates/${item.lat},${item.lon}`
-          );
-          const tzdata = await tzr.json();
-          const timezone = tzdata.timezone_id || guessTimezone(item.lat, item.lon);
-          addCity(item.display_name, timezone);
-          results.innerHTML = "";
-          searchInput.value = "";
-        } catch (e) {
-          // Fallback: guess timezone from coordinates
-          const timezone = guessTimezone(item.lat, item.lon);
-          addCity(item.display_name, timezone);
-          results.innerHTML = "";
-          searchInput.value = "";
-        }
-      };
-      results.appendChild(d);
-    }
-  } catch (e) {
-    console.error('Search error:', e);
-    results.innerHTML = '<div class="result">Error al buscar. Intenta de nuevo.</div>';
+
+    // Quitar el mensaje "buscando online..." del dropdown
+    const loadingMsg = dropdown.querySelector(".drop-loading");
+    if (loadingMsg) loadingMsg.remove();
+
+    if (extras.length > 0) showDropdownResults(extras, q, true);
+  } catch(_) {
+    const loadingMsg = dropdown.querySelector(".drop-loading");
+    if (loadingMsg) loadingMsg.remove();
   }
 }
 
-// Fallback function to guess timezone from coordinates
-function guessTimezone(lat, lon) {
-  // Common timezone mappings by region
-  const timezones = {
-    'America/Argentina/Buenos_Aires': {lat: [-40, -20], lon: [-70, -50]},
-    'America/New_York': {lat: [25, 50], lon: [-85, -65]},
-    'America/Los_Angeles': {lat: [30, 50], lon: [-125, -110]},
-    'Europe/London': {lat: [50, 60], lon: [-10, 2]},
-    'Europe/Paris': {lat: [42, 52], lon: [-5, 10]},
-    'Europe/Madrid': {lat: [36, 44], lon: [-10, 4]},
-    'Asia/Tokyo': {lat: [30, 46], lon: [128, 146]},
-    'Asia/Shanghai': {lat: [20, 45], lon: [100, 125]},
-    'Asia/Dubai': {lat: [22, 28], lon: [50, 60]},
-    'Australia/Sydney': {lat: [-38, -28], lon: [145, 155]},
+// Calcula timezone a partir de longitud (aproximado, suficiente para la mayoría)
+function guessTimezoneFromCoords(lat, lon) {
+  // Intentamos matchear primero con nuestra lista por coordenadas aproximadas
+  const COORDS = {
+    "America/Argentina/Buenos_Aires": [-34.6, -58.4],
+    "America/Sao_Paulo": [-23.5, -46.6],
+    "America/New_York": [40.7, -74.0],
+    "America/Chicago": [41.9, -87.6],
+    "America/Denver": [39.7, -104.9],
+    "America/Los_Angeles": [34.0, -118.2],
+    "America/Mexico_City": [19.4, -99.1],
+    "Europe/London": [51.5, -0.1],
+    "Europe/Paris": [48.9, 2.3],
+    "Europe/Berlin": [52.5, 13.4],
+    "Europe/Madrid": [40.4, -3.7],
+    "Europe/Rome": [41.9, 12.5],
+    "Europe/Moscow": [55.7, 37.6],
+    "Asia/Dubai": [25.2, 55.3],
+    "Asia/Kolkata": [28.6, 77.2],
+    "Asia/Shanghai": [31.2, 121.5],
+    "Asia/Tokyo": [35.7, 139.7],
+    "Asia/Seoul": [37.6, 127.0],
+    "Asia/Singapore": [1.3, 103.8],
+    "Australia/Sydney": [-33.9, 151.2],
+    "Pacific/Auckland": [-36.9, 174.8],
+    "Africa/Cairo": [30.1, 31.2],
+    "Africa/Nairobi": [-1.3, 36.8],
+    "Africa/Johannesburg": [-26.2, 28.0],
   };
-  
-  for (const [tz, bounds] of Object.entries(timezones)) {
-    if (lat >= bounds.lat[0] && lat <= bounds.lat[1] && 
-        lon >= bounds.lon[0] && lon <= bounds.lon[1]) {
-      return tz;
-    }
+
+  let best = null, bestDist = Infinity;
+  for (const [tz, [tlat, tlon]] of Object.entries(COORDS)) {
+    const dist = Math.abs(lat - tlat) + Math.abs(lon - tlon);
+    if (dist < bestDist) { bestDist = dist; best = tz; }
   }
-  
-  // Default fallback based on longitude
-  const offset = Math.round(lon / 15);
-  return `Etc/GMT${offset > 0 ? '-' : '+'}${Math.abs(offset)}`;
+
+  // Si la distancia es razonable, usarlo
+  if (bestDist < 8) return best;
+
+  // Fallback: offset UTC por longitud
+  const off = Math.round(lon / 15);
+  if (off === 0) return "UTC";
+  return `Etc/GMT${off > 0 ? '-' : '+'}${Math.abs(off)}`;
 }
 
-/* ========= CONTROLS ========= */
-const nowToggle = document.getElementById("nowToggle");
-const timeInput = document.getElementById("timeInput");
-
-nowToggle.onchange = e => {
-  state.useNow = e.target.checked;
-  timeInput.disabled = e.target.checked;
-  save();
-  render();
-};
-
-timeInput.oninput = e => {
-  state.custom = e.target.value;
-  if (state.useNow) {
-    state.useNow = false;
-    nowToggle.checked = false;
-  }
-  save();
-  render();
-};
-
-// Initialize time input state
-timeInput.disabled = state.useNow;
-timeInput.value = state.custom;
-
-/* ========= INIT ========= */
-load();
-
-// Add current location on first use
-if (state.cities.length === 0) {
-  addCurrentLocation();
+// ─────────────────────────────────────────────
+// UBICACIÓN ACTUAL
+// ─────────────────────────────────────────────
+function addCurrentLocation() {
+  const userTZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  // Buscar nombre en lista
+  const found = TZ_LIST.find(t => t.tz === userTZ);
+  const name = found ? `📍 ${found.name}` : `📍 ${userTZ.split("/").pop().replace(/_/g, " ")}`;
+  addCity(name, userTZ);
 }
 
-render();
-setInterval(render, 1000);
-
-// Function to add current location
-async function addCurrentLocation() {
-  try {
-    // Get user's timezone
-    const userTZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    
-    // Get location name from timezone
-    const cityName = userTZ.split('/').pop().replace(/_/g, ' ');
-    
-    // Add it as the first city
-    addCity(`📍 ${cityName} (Tu ubicación)`, userTZ);
-    
-    // Try to get more accurate location with geolocation API
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          try {
-            const { latitude, longitude } = position.coords;
-            const r = await fetch(
-              `https://geocode.maps.co/reverse?lat=${latitude}&lon=${longitude}`
-            );
-            const data = await r.json();
-            
-            if (data.display_name) {
-              // Update the first city with accurate location
-              if (state.cities.length > 0 && state.cities[0].name.includes('Tu ubicación')) {
-                state.cities[0].name = `📍 ${data.display_name}`;
-                save();
-                render();
-              }
-            }
-          } catch (e) {
-            console.log('Could not get precise location name');
-          }
-        },
-        (error) => {
-          // Geolocation denied or failed, keep the timezone-based name
-          console.log('Geolocation not available:', error.message);
-        }
-      );
-    }
-  } catch (e) {
-    console.error('Error adding current location:', e);
-    // Fallback to UTC if everything fails
-    addCity('📍 Tu ubicación (UTC)', 'UTC');
-  }
+// ─────────────────────────────────────────────
+// CONTROLES DE TIEMPO
+// ─────────────────────────────────────────────
+function setModeNow() {
+  state.useNow = true;
+  saveState();
+  document.getElementById("btn-now").classList.add("selected");
+  document.getElementById("btn-custom").classList.remove("selected");
+  const ti = document.getElementById("custom-time");
+  ti.disabled = true;
+  ti.style.opacity = "0.4";
+  ti.style.pointerEvents = "none";
+  updateClocks();
 }
+
+function setModeCustom() {
+  state.useNow = false;
+  saveState();
+  document.getElementById("btn-custom").classList.add("selected");
+  document.getElementById("btn-now").classList.remove("selected");
+  const ti = document.getElementById("custom-time");
+  ti.disabled = false;
+  ti.style.opacity = "1";
+  ti.style.pointerEvents = "auto";
+  ti.focus();
+  updateClocks();
+}
+
+function onCustomTime(input) {
+  state.custom = input.value;
+  if (state.useNow) setModeCustom();
+  else { saveState(); updateClocks(); }
+}
+
+function showStatus(msg, type) {
+  const el = document.getElementById("status-msg");
+  el.textContent = msg;
+  el.style.color = type === "warn" ? "var(--warning)" : type === "error" ? "var(--danger)" : "var(--success)";
+  setTimeout(() => { el.textContent = ""; }, 3000);
+}
+
+// ─────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────
+loadState();
+
+// Restaurar estado UI de los botones
+document.getElementById("custom-time").value = state.custom;
+if (state.useNow) {
+  document.getElementById("btn-now").classList.add("selected");
+  document.getElementById("btn-custom").classList.remove("selected");
+  document.getElementById("custom-time").disabled = true;
+  document.getElementById("custom-time").style.opacity = "0.4";
+  document.getElementById("custom-time").style.pointerEvents = "none";
+} else {
+  document.getElementById("btn-custom").classList.add("selected");
+  document.getElementById("btn-now").classList.remove("selected");
+  document.getElementById("custom-time").disabled = false;
+  document.getElementById("custom-time").style.opacity = "1";
+  document.getElementById("custom-time").style.pointerEvents = "auto";
+}
+
+if (state.cities.length === 0) addCurrentLocation();
+
+buildCards();
+updateClocks();
+// El ticker solo actualiza los relojes, NO toca el DOM estructural
+setInterval(updateClocks, 1000);
 </script>
 </body>
 </html>
